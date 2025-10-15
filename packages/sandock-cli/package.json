@@ -1,0 +1,72 @@
+{
+  "name": "sandock-cli",
+  "version": "0.1.0",
+  "description": "Command-line interface for Sandock - Sandbox in Docker for AI Agents",
+  "type": "module",
+  "license": "MIT",
+  "author": {
+    "name": "Sandock Team",
+    "url": "https://sandock.ai"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sandock-ai/sandock.git",
+    "directory": "packages/sandock-cli"
+  },
+  "homepage": "https://sandock.ai",
+  "bugs": {
+    "url": "https://github.com/sandock-ai/sandock/issues"
+  },
+  "keywords": [
+    "sandock",
+    "cli",
+    "sandbox",
+    "docker",
+    "code-execution",
+    "oclif"
+  ],
+  "bin": {
+    "sandock": "./dist/bin/run.js",
+    "sandock-cli": "./dist/bin/run.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/bin/run.js",
+    "clean": "rm -rf dist",
+    "dev": "tsx src/bin/run.ts",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@oclif/core": "^4.5.5",
+    "chalk": "^5.6.2",
+    "conf": "^13.1.0",
+    "inquirer": "^12.10.0",
+    "ora": "^8.2.0",
+    "sandock": "^0.2.0"
+  },
+  "devDependencies": {
+    "@oclif/prettier-config": "^0.2.1",
+    "@types/inquirer": "^9.0.9",
+    "@types/node": "^20.14.12",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "oclif": {
+    "bin": "sandock",
+    "dirname": "sandock",
+    "commands": "./dist/commands",
+    "topicSeparator": " ",
+    "topics": {
+      "sandbox": {
+        "description": "Manage sandboxes"
+      }
+    }
+  }
+}

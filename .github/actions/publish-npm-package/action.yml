@@ -1,0 +1,163 @@
+name: "Publish NPM Package"
+description: "Reusable action to publish a package to npm with version management and GitHub releases"
+
+inputs:
+  package-path:
+    description: "Path to the package directory (e.g., packages/sandock-js)"
+    required: true
+  package-name:
+    description: "Package name for display (e.g., sandock-js, sandock-cli)"
+    required: true
+  version-override:
+    description: "Optional version override (e.g., 0.1.1)"
+    required: false
+    default: ""
+  npm-token:
+    description: "NPM authentication token"
+    required: true
+  github-token:
+    description: "GitHub token for creating releases"
+    required: true
+  node-version:
+    description: "Node.js version to use"
+    required: false
+    default: "22"
+  pnpm-version:
+    description: "pnpm version to use"
+    required: false
+    default: "10.15.1"
+
+outputs:
+  published:
+    description: "Whether the package was published (true/false)"
+    value: ${{ steps.publish.outputs.published }}
+  version:
+    description: "The version that was published"
+    value: ${{ steps.check_version.outputs.package_version }}
+  package-name:
+    description: "The full package name"
+    value: ${{ steps.check_version.outputs.package_name }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        registry-url: "https://registry.npmjs.org"
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install
+
+    - name: Update version if specified
+      if: ${{ inputs.version-override != '' }}
+      shell: bash
+      working-directory: ${{ inputs.package-path }}
+      run: |
+        echo "Updating ${{ inputs.package-name }} version to ${{ inputs.version-override }}"
+        npm version ${{ inputs.version-override }} --no-git-tag-version
+
+    - name: Check if version already published
+      id: check_version
+      shell: bash
+      working-directory: ${{ inputs.package-path }}
+      run: |
+        PACKAGE_NAME=$(node -p "require('./package.json').name")
+        PACKAGE_VERSION=$(node -p "require('./package.json').version")
+
+        echo "Package: $PACKAGE_NAME"
+        echo "Version: $PACKAGE_VERSION"
+
+        if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version 2>/dev/null; then
+          echo "Version $PACKAGE_VERSION already exists on npm"
+          echo "already_published=true" >> $GITHUB_OUTPUT
+        else
+          echo "Version $PACKAGE_VERSION is new"
+          echo "already_published=false" >> $GITHUB_OUTPUT
+        fi
+
+        echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+        echo "package_version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+
+    - name: Build package
+      if: steps.check_version.outputs.already_published == 'false'
+      shell: bash
+      working-directory: ${{ inputs.package-path }}
+      run: pnpm build
+
+    - name: Publish to npm
+      if: steps.check_version.outputs.already_published == 'false'
+      id: publish
+      shell: bash
+      working-directory: ${{ inputs.package-path }}
+      run: |
+        npm publish --provenance --access public
+        echo "published=true" >> $GITHUB_OUTPUT
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+
+    - name: Bump version after successful publish
+      if: steps.check_version.outputs.already_published == 'false'
+      shell: bash
+      working-directory: ${{ inputs.package-path }}
+      run: |
+        npm version patch --no-git-tag-version
+        NEW_VERSION=$(node -p "require('./package.json').version")
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "✅ Bumped version to $NEW_VERSION for next release"
+      id: bump_version
+
+    - name: Commit version bump
+      if: steps.check_version.outputs.already_published == 'false'
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "chore(${{ inputs.package-name }}): bump version to ${{ steps.bump_version.outputs.new_version }} [skip ci]"
+        file_pattern: "${{ inputs.package-path }}/package.json"
+        commit_user_name: "Sandock Developer"
+        commit_user_email: "dev@sandock.ai"
+        commit_author: "Sandock Developer <dev@sandock.ai>"
+
+    - name: Skip publishing (version exists)
+      if: steps.check_version.outputs.already_published == 'true'
+      shell: bash
+      run: |
+        echo "⚠️ Version ${{ steps.check_version.outputs.package_version }} already exists on npm"
+        echo "To publish a new version, update the version in package.json or provide a version input"
+        echo "published=false" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release
+      if: steps.check_version.outputs.already_published == 'false'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      with:
+        tag_name: ${{ inputs.package-name }}-v${{ steps.check_version.outputs.package_version }}
+        release_name: ${{ inputs.package-name }} v${{ steps.check_version.outputs.package_version }}
+        body: |
+          Published ${{ inputs.package-name }} version ${{ steps.check_version.outputs.package_version }} to npm
+
+          Install: `npm install ${{ steps.check_version.outputs.package_name }}@${{ steps.check_version.outputs.package_version }}`
+        draft: false
+        prerelease: false
+
+    - name: Summary
+      shell: bash
+      run: |
+        echo "## 📦 ${{ inputs.package-name }} Publish Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Package**: ${{ steps.check_version.outputs.package_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ steps.check_version.outputs.package_version }}" >> $GITHUB_STEP_SUMMARY
+
+        if [ "${{ steps.check_version.outputs.already_published }}" == "true" ]; then
+          echo "- **Status**: ⚠️ Already published (skipped)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Status**: ✅ Published successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: https://www.npmjs.com/package/${{ steps.check_version.outputs.package_name }}" >> $GITHUB_STEP_SUMMARY
+        fi

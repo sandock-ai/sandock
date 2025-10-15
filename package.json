@@ -1,0 +1,29 @@
+{
+  "name": "sandock-oss",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Sandock - Sandbox in Docker for AI Agents",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sandock-ai/sandock.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sandock-ai/sandock/issues"
+  },
+  "homepage": "https://sandock.ai",
+  "license": "MIT",
+  "author": "Sandock Team",
+  "scripts": {
+    "build": "pnpm --filter \"./packages/*\" build",
+    "test": "pnpm --filter \"./packages/*\" test",
+    "lint": "pnpm --filter \"./packages/*\" lint",
+    "typecheck": "pnpm --filter \"./packages/*\" typecheck",
+    "clean": "pnpm --filter \"./packages/*\" clean",
+    "dev": "pnpm --filter \"./packages/*\" dev"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@10.15.1"
+}

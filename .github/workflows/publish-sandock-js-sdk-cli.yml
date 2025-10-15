@@ -1,0 +1,116 @@
+name: Publish Sandock packages to npm
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/sandock-js/**"
+      - "packages/sandock-cli/**"
+      - ".github/workflows/publish-sandock-js-sdk-cli.yml"
+  workflow_dispatch:
+    inputs:
+      js_version:
+        description: "sandock-js version (e.g., 0.1.1) - leave empty to use package.json"
+        required: false
+        type: string
+      cli_version:
+        description: "sandock-cli version (e.g., 0.1.1) - leave empty to use package.json"
+        required: false
+        type: string
+
+jobs:
+  publish-sdk:
+    name: Publish sandock-js (SDK)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Publish sandock-js
+        uses: ./.github/actions/publish-npm-package
+        with:
+          package-path: packages/sandock-js
+          package-name: sandock-js
+          version-override: ${{ github.event.inputs.js_version }}
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-cli:
+    name: Publish sandock-cli
+    runs-on: ubuntu-latest
+    needs: publish-sdk # CLI depends on SDK, so publish SDK first
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main # Ensure we get the latest main branch including SDK version bump
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Wait for SDK to be available on npm
+        run: |
+          echo "Waiting for sandock SDK to be available on npm..."
+          SDK_VERSION=$(node -p "require('./packages/sandock-js/package.json').version")
+          echo "Expected SDK version: $SDK_VERSION"
+
+          for i in {1..30}; do
+            if npm view "sandock@$SDK_VERSION" version 2>/dev/null; then
+              echo "✅ sandock@$SDK_VERSION is available on npm"
+              break
+            fi
+            echo "⏳ Attempt $i/30: SDK not yet available, waiting 10 seconds..."
+            sleep 10
+          done
+
+          # Final check
+          if ! npm view "sandock@$SDK_VERSION" version 2>/dev/null; then
+            echo "❌ Timeout: sandock@$SDK_VERSION not available after 5 minutes"
+            exit 1
+          fi
+
+          # Export version for next steps
+          echo "SDK_VERSION=$SDK_VERSION" >> $GITHUB_ENV
+
+      - name: Update CLI dependency to latest SDK version
+        working-directory: packages/sandock-cli
+        run: |
+          echo "Updating sandock dependency to ^$SDK_VERSION"
+          npm pkg set dependencies.sandock="^$SDK_VERSION"
+          echo "✅ Updated package.json"
+          cat package.json | grep -A 3 "dependencies"
+
+      - name: Install dependencies (from npm)
+        working-directory: packages/sandock-cli
+        run: |
+          echo "Installing dependencies from npm (sandock will come from npm registry)..."
+          pnpm install --no-frozen-lockfile
+
+      - name: Publish sandock-cli
+        uses: ./.github/actions/publish-npm-package
+        with:
+          package-path: packages/sandock-cli
+          package-name: sandock-cli
+          version-override: ${{ github.event.inputs.cli_version }}
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

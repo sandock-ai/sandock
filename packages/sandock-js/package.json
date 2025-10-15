@@ -1,0 +1,65 @@
+{
+  "name": "sandock",
+  "version": "0.2.1",
+  "description": "Lightweight TypeScript SDK for the Sandock - Sandbox in Docker for AI Agents.",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "author": {
+    "name": "Sandock Team",
+    "url": "https://sandock.ai"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sandock-ai/sandock.git"
+  },
+  "homepage": "https://sandock.ai",
+  "bugs": {
+    "url": "https://github.com/sandock-ai/sandock/issues"
+  },
+  "keywords": [
+    "sandock",
+    "api",
+    "sdk",
+    "typescript",
+    "openapi",
+    "type-safe",
+    "sandbox",
+    "code-execution"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js"
+    }
+  },
+  "files": [
+    "src",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "test": "vitest",
+    "prepublishOnly": "pnpm run build",
+    "generate": "openapi-typescript http://localhost:3030/api/openapi.json -o src/schema.ts",
+    "generate:prod": "openapi-typescript https://sandock.com/api/openapi.json -o src/schema.ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.12",
+    "openapi-typescript": "^7.6.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
