@@ -100,29 +100,9 @@ runs:
       run: |
         npm publish --provenance --access public
         echo "published=true" >> $GITHUB_OUTPUT
+        echo "✅ Published ${{ steps.check_version.outputs.package_name }}@${{ steps.check_version.outputs.package_version }} to npm"
       env:
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
-
-    - name: Bump version after successful publish
-      if: steps.check_version.outputs.already_published == 'false'
-      shell: bash
-      working-directory: ${{ inputs.package-path }}
-      run: |
-        npm version patch --no-git-tag-version
-        NEW_VERSION=$(node -p "require('./package.json').version")
-        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-        echo "✅ Bumped version to $NEW_VERSION for next release"
-      id: bump_version
-
-    - name: Commit version bump
-      if: steps.check_version.outputs.already_published == 'false'
-      uses: stefanzweifel/git-auto-commit-action@v5
-      with:
-        commit_message: "chore(${{ inputs.package-name }}): bump version to ${{ steps.bump_version.outputs.new_version }} [skip ci]"
-        file_pattern: "${{ inputs.package-path }}/package.json"
-        commit_user_name: "Sandock Developer"
-        commit_user_email: "dev@sandock.ai"
-        commit_author: "Sandock Developer <dev@sandock.ai>"
 
     - name: Skip publishing (version exists)
       if: steps.check_version.outputs.already_published == 'true'
