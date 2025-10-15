@@ -20,22 +20,26 @@ export default class SandboxList extends Command {
       description: "Maximum number of sandboxes to list",
       default: 20,
     }),
+    space: Flags.string({
+      char: "s",
+      description: "Space ID",
+      default: "default",
+    }),
   };
 
   public async run(): Promise<void> {
     const { flags } = await this.parse(SandboxList);
     const client = getClient();
+    const spaceFlag = flags.space?.trim();
+    const spaceId = spaceFlag && spaceFlag.length > 0 ? spaceFlag : undefined;
+    const requestOptions = spaceId
+      ? { params: { query: { spaceId } } }
+      : undefined;
 
     try {
       this.log(chalk.cyan("Fetching sandboxes..."));
 
-      const { data, error } = await client.GET("/api/sandbox", {
-        params: {
-          query: {
-            spaceId: "default",
-          },
-        },
-      });
+      const { data, error } = await client.GET("/api/sandbox", requestOptions);
 
       if (error || !data) {
         this.error(chalk.red(`Failed to fetch sandboxes: ${error || "Unknown error"}`));

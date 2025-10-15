@@ -112,15 +112,14 @@ export interface paths {
   };
   "/api/sandbox": {
     parameters: {
-      query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
     get: {
       parameters: {
-        query: {
-          spaceId: string;
+        query?: {
+          spaceId?: string;
         };
         header?: never;
         path?: never;
@@ -323,7 +322,6 @@ export interface paths {
   };
   "/api/sandbox/{id}/shell": {
     parameters: {
-      query?: never;
       header?: never;
       path?: never;
       cookie?: never;
@@ -332,7 +330,9 @@ export interface paths {
     put?: never;
     post: {
       parameters: {
-        query?: never;
+        query?: {
+          spaceId?: string;
+        };
         header?: never;
         path: {
           id: string;

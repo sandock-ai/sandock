@@ -32,18 +32,29 @@ export default class SandboxExec extends Command {
       description: "Execution timeout in seconds",
       default: 30,
     }),
+    space: Flags.string({
+      char: "s",
+      description: "Space ID",
+      default: "default",
+    }),
   };
 
   public async run(): Promise<void> {
     const { args, flags } = await this.parse(SandboxExec);
     const client = getClient();
     const spinner = ora();
+    const spaceFlag = flags.space?.trim();
+    const spaceId = spaceFlag && spaceFlag.length > 0 ? spaceFlag : undefined;
+    const params = {
+      path: { id: args.id },
+      ...(spaceId ? { query: { spaceId } } : {}),
+    };
 
     try {
       spinner.start("Executing command...");
 
       const { data, error } = await client.POST("/api/sandbox/{id}/shell", {
-        params: { path: { id: args.id } },
+        params,
         body: {
           cmd: args.command,
           timeoutMs: flags.timeout * 1000, // Convert to milliseconds
