@@ -32,9 +32,10 @@ export default class SandboxExec extends Command {
       description: "Execution timeout in seconds",
       default: 30,
     }),
-    namespace: Flags.string({
+    space: Flags.string({
       char: "s",
-      description: "Namespace (space ID)",
+      description: "Space ID",
+      default: "default",
     }),
   };
 
@@ -42,8 +43,8 @@ export default class SandboxExec extends Command {
     const { args, flags } = await this.parse(SandboxExec);
     const client = getClient();
     const spinner = ora();
-    const namespace = flags.namespace?.trim();
-    const spaceId = namespace && namespace.length > 0 ? namespace : undefined;
+    const spaceFlag = flags.space?.trim();
+    const spaceId = spaceFlag && spaceFlag.length > 0 ? spaceFlag : undefined;
     const params = {
       path: { id: args.id },
       ...(spaceId ? { query: { spaceId } } : {}),

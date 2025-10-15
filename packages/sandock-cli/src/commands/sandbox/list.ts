@@ -20,18 +20,18 @@ export default class SandboxList extends Command {
       description: "Maximum number of sandboxes to list",
       default: 20,
     }),
-    namespace: Flags.string({
+    space: Flags.string({
       char: "s",
-      description: "Namespace (space ID)",
+      description: "Space ID",
+      default: "default",
     }),
   };
 
   public async run(): Promise<void> {
     const { flags } = await this.parse(SandboxList);
     const client = getClient();
-    const namespace = flags.namespace?.trim();
-    const spaceId =
-      namespace !== undefined ? (namespace.length > 0 ? namespace : undefined) : "default";
+    const spaceFlag = flags.space?.trim();
+    const spaceId = spaceFlag && spaceFlag.length > 0 ? spaceFlag : undefined;
     const requestOptions = spaceId
       ? { params: { query: { spaceId } } }
       : undefined;
