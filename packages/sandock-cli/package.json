@@ -1,6 +1,6 @@
 {
   "name": "sandock-cli",
-  "version": "0.1.0",
+  "version": "0.2.2",
   "description": "Command-line interface for Sandock - Sandbox in Docker for AI Agents",
   "type": "module",
   "license": "MIT",
