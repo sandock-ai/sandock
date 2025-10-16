@@ -28,8 +28,7 @@ export default class SandboxCreate extends Command {
     }),
     space: Flags.string({
       char: "s",
-      description: "Space ID",
-      default: "default",
+      description: "Space ID (optional - uses personal space if not provided)",
     }),
   };
 
@@ -43,7 +42,7 @@ export default class SandboxCreate extends Command {
 
       const { data, error } = await client.POST("/api/sandbox", {
         body: {
-          spaceId: flags.space,
+          ...(flags.space && { spaceId: flags.space }),
           name: flags.name,
           ...(flags.image && { image: flags.image }),
         },

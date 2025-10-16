@@ -44,6 +44,7 @@ async function getUser(userId: string) {
 async function createSandbox() {
   const { data, error } = await client.POST("/api/sandbox", {
     body: {
+      // spaceId is optional - if not provided, uses user's personal space
       image: "node:20-alpine",
       command: ["node", "--version"],
       env: {

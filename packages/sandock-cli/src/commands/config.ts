@@ -60,7 +60,7 @@ export default class Config extends Command {
       this.log(chalk.cyan("API URL:"), config.apiUrl);
       this.log(
         chalk.cyan("API Key:"),
-        config.apiKey ? "***" + config.apiKey.slice(-4) : chalk.gray("(not set)"),
+        config.apiKey ? `***${config.apiKey.slice(-4)}` : chalk.gray("(not set)"),
       );
       this.log(chalk.gray(`\nConfig file: ${config.path}`));
     }

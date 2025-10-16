@@ -22,8 +22,7 @@ export default class SandboxList extends Command {
     }),
     space: Flags.string({
       char: "s",
-      description: "Space ID",
-      default: "default",
+      description: "Space ID (optional - uses personal space if not provided)",
     }),
   };
 
@@ -32,14 +31,17 @@ export default class SandboxList extends Command {
     const client = getClient();
     const spaceFlag = flags.space?.trim();
     const spaceId = spaceFlag && spaceFlag.length > 0 ? spaceFlag : undefined;
-    const requestOptions = spaceId
-      ? { params: { query: { spaceId } } }
-      : undefined;
+    const requestOptions = spaceId ? { params: { query: { spaceId } } } : undefined;
 
     try {
       this.log(chalk.cyan("Fetching sandboxes..."));
 
-      const { data, error } = await client.GET("/api/sandbox", requestOptions);
+      const requestParams = flags.space
+        ? { params: { query: { spaceId: flags.space } } }
+        : undefined;
+
+      // biome-ignore lint/suspicious/noExplicitAny: openapi-fetch type limitation
+      const { data, error } = await client.GET("/api/sandbox", requestParams as any);
 
       if (error || !data) {
         this.error(chalk.red(`Failed to fetch sandboxes: ${error || "Unknown error"}`));

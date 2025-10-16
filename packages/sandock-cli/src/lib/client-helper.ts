@@ -9,7 +9,7 @@ export function getClient(): SandockClient {
   const headers: Record<string, string> = {};
 
   if (config.apiKey) {
-    headers["Authorization"] = `Bearer ${config.apiKey}`;
+    headers.Authorization = `Bearer ${config.apiKey}`;
   }
 
   return createSandockClient({

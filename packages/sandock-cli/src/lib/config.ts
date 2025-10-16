@@ -16,6 +16,7 @@ const schema = {
   },
   apiKey: {
     type: "string" as const,
+    default: "",
   },
 };
 

@@ -34,7 +34,7 @@ beforeAll(async () => {
   try {
     const { data, error } = await client.GET("/api/meta");
 
-    if (data && data.success) {
+    if (data?.success) {
       serverAvailable = true;
       console.log(`[TEST] ✓ Sandock server available`);
       console.log(`[TEST] Server version: ${data.data.version}`);
