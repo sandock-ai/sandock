@@ -5,7 +5,9 @@ const DEFAULT_BASE_URL = process.env.SANDOCK_API_URL || "http://localhost:3030";
 const TEST_TIMEOUT = 60_000; // 60 seconds for most tests
 const LONG_TEST_TIMEOUT = 180_000; // 3 minutes for longer operations
 
-// Universal test token for localhost testing
+// Universal test token for localhost testing (development mode only)
+// In production, use real API keys (starting with "sk-")
+// Example: Authorization: Bearer sk-xxxxxxxxxxxxx
 const TEST_TOKEN = "sandock_test_token_local_dev_only";
 
 // Check if the server is available before running tests
@@ -232,13 +234,8 @@ describe("Sandock API Integration Tests", () => {
       async () => {
         if (skipIfNoServer("list sandboxes")) return;
 
-        const { data, error } = await client.GET("/api/sandbox", {
-          params: {
-            query: {
-              spaceId: "test-space-sdk",
-            },
-          },
-        });
+        // Note: spaceId is no longer passed - it's derived from API key
+        const { data, error } = await client.GET("/api/sandbox");
 
         if (error) {
           console.log("[TEST] ✗ List error:", JSON.stringify(error, null, 2));

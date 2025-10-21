@@ -112,15 +112,14 @@ export interface paths {
   };
   "/api/sandbox": {
     parameters: {
+      query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
     get: {
       parameters: {
-        query?: {
-          spaceId?: string;
-        };
+        query?: never;
         header?: never;
         path?: never;
         cookie?: never;
@@ -322,6 +321,7 @@ export interface paths {
   };
   "/api/sandbox/{id}/shell": {
     parameters: {
+      query?: never;
       header?: never;
       path?: never;
       cookie?: never;
@@ -330,9 +330,7 @@ export interface paths {
     put?: never;
     post: {
       parameters: {
-        query?: {
-          spaceId?: string;
-        };
+        query?: never;
         header?: never;
         path: {
           id: string;
@@ -676,7 +674,7 @@ export interface components {
     MetaResponse: {
       /** @example dev */
       version: string;
-      /** @example 1760448876110 */
+      /** @example 1760724524102 */
       timestamp: number;
     };
     User: {
@@ -687,7 +685,6 @@ export interface components {
       age: number;
     };
     CreateSandboxRequest: {
-      spaceId?: string;
       actorUserId?: string;
       /** @example sandockai/sandock-code:latest */
       image?: string;
