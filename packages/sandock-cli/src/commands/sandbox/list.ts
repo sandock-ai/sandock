@@ -31,7 +31,7 @@ export default class SandboxList extends Command {
     const client = getClient();
     const spaceFlag = flags.space?.trim();
     const spaceId = spaceFlag && spaceFlag.length > 0 ? spaceFlag : undefined;
-    const requestOptions = spaceId ? { params: { query: { spaceId } } } : undefined;
+    const _requestOptions = spaceId ? { params: { query: { spaceId } } } : undefined;
 
     try {
       this.log(chalk.cyan("Fetching sandboxes..."));
