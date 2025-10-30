@@ -667,6 +667,63 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/sandbox/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Deleted sandbox */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description Request success flag
+               * @example true
+               */
+              success: boolean;
+              /**
+               * @description status code
+               * @example 200
+               */
+              code: number;
+              /**
+               * @description Response message
+               * @example SUCCESS
+               */
+              message: string;
+              data: {
+                id: string;
+                deleted: boolean;
+              };
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
