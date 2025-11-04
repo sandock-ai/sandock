@@ -12,6 +12,7 @@ export default class SandboxList extends Command {
   static override examples = [
     "<%= config.bin %> <%= command.id %>",
     "<%= config.bin %> <%= command.id %> --limit 50",
+    "<%= config.bin %> <%= command.id %> --space my-space",
   ];
 
   static override flags = {
@@ -29,9 +30,6 @@ export default class SandboxList extends Command {
   public async run(): Promise<void> {
     const { flags } = await this.parse(SandboxList);
     const client = getClient();
-    const spaceFlag = flags.space?.trim();
-    const spaceId = spaceFlag && spaceFlag.length > 0 ? spaceFlag : undefined;
-    const _requestOptions = spaceId ? { params: { query: { spaceId } } } : undefined;
 
     try {
       this.log(chalk.cyan("Fetching sandboxes..."));
@@ -40,7 +38,7 @@ export default class SandboxList extends Command {
         ? { params: { query: { spaceId: flags.space } } }
         : undefined;
 
-      // biome-ignore lint/suspicious/noExplicitAny: openapi-fetch type limitation
+      // biome-ignore lint/suspicious/noExplicitAny: Schema is outdated - spaceId query param is optional
       const { data, error } = await client.GET("/api/sandbox", requestParams as any);
 
       if (error || !data) {
