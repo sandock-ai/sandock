@@ -1,0 +1,57 @@
+{
+  "name": "sandock-mcp",
+  "version": "0.1.1",
+  "description": "Model Context Protocol (MCP) server for Sandock - Sandbox in Docker for AI Agents",
+  "type": "module",
+  "license": "MIT",
+  "author": {
+    "name": "Sandock Team",
+    "url": "https://sandock.ai"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sandock-ai/sandock.git",
+    "directory": "packages/sandock-mcp"
+  },
+  "homepage": "https://sandock.ai",
+  "bugs": {
+    "url": "https://github.com/sandock-ai/sandock/issues"
+  },
+  "keywords": [
+    "sandock",
+    "mcp",
+    "model-context-protocol",
+    "sandbox",
+    "docker",
+    "code-execution",
+    "ai-agent"
+  ],
+  "bin": {
+    "sandock-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/index.js",
+    "clean": "rm -rf dist",
+    "dev": "tsx src/index.ts",
+    "demo": "node demo/demo.js",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "fastmcp": "^3.22.0",
+    "sandock": "^0.2.0",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.12",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
