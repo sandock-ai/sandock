@@ -1,15 +1,17 @@
 # Sandock MCP
 
-Model Context Protocol (MCP) server for Sandock - provides AI agents with a powerful tool to execute code in isolated Docker sandbox environments.
+Model Context Protocol (MCP) server for Sandock - provides AI agents with tools to work with isolated Docker sandbox environments for continuous task processing.
 
 ## Features
 
-- ⚡ **Execute Code** - Run JavaScript, TypeScript, or Python code in isolated sandboxes
-- 🎯 **Multi-Language Support** - Native support for JavaScript, TypeScript, and Python
-- 📦 **Ephemeral Sandboxes** - Automatic sandbox creation and cleanup for each execution
-- ⏱️ **Timeout Protection** - Configurable execution timeout (default: 30s, max: 300s)
-- 🛠️ **Structured Output** - Comprehensive results including stdout, stderr, exit code, and execution time
-- 🛡️ **Error Handling** - Detailed error messages with troubleshooting suggestions and solutions
+- 🚀 **Sandbox Management** - Create, manage, and delete isolated sandbox environments
+- 💻 **Shell Execution** - Execute shell commands for file operations and system tasks
+- 📝 **File Operations** - Write text files and download binary files from URLs
+- ⚡ **Code Execution** - Run JavaScript, TypeScript, or Python code
+- 🎯 **Stateful Sessions** - Agent manages sandbox lifecycle for multi-step workflows
+- 🔄 **Continuous Processing** - Handle complex tasks like file upload, extraction, processing, and result retrieval
+- ⏱️ **Timeout Protection** - Configurable timeouts for all operations
+- 🛡️ **Error Handling** - Detailed error messages with troubleshooting suggestions
 
 ## Installation
 
@@ -66,70 +68,248 @@ Add to your MCP client configuration file:
 
 ## Available Tools
 
-### sandock_run_code
+### 1. sandock_create_sandbox
 
-Execute code in an isolated sandbox environment.
-
-This tool handles the complete lifecycle:
-1. Creates a new ephemeral sandbox
-2. Executes the provided code using the `/code` endpoint
-3. Returns comprehensive results (stdout, stderr, exit code, execution time)
-4. Automatically cleans up the sandbox after execution
+Create a new isolated sandbox environment.
 
 **Parameters:**
-- `language` (string, required) - Programming language: `"javascript"`, `"typescript"`, or `"python"`
-- `code` (string, required) - Code to execute
-- `timeout` (number, optional) - Execution timeout in seconds (default: `30`, max: `300`)
+- `name` (string, optional) - Sandbox name (default: auto-generated)
+- `image` (string, optional) - Docker image (default: `sandockai/sandock-code:latest`)
+- `memoryLimitMb` (number, optional) - Memory limit in MB
+- `cpuShares` (number, optional) - CPU shares (relative weight)
+- `keep` (boolean, optional) - Keep sandbox alive (default: `false`)
 
 **Returns:**
-- `success` (boolean) - Whether execution succeeded (exit code was 0)
-- `language` (string) - Programming language used
+- `success` (boolean) - Whether creation succeeded
+- `sandboxId` (string) - Sandbox ID for subsequent operations
+- `name` (string) - Sandbox name
+- `message` (string) - Success message
+
+**Example:**
+```json
+{
+  "name": "data-analysis",
+  "image": "python:3.11-slim",
+  "memoryLimitMb": 1024
+}
+```
+
+---
+
+### 2. sandock_shell_exec
+
+Execute shell commands in the sandbox. Use for file operations (unzip, tar, grep, cat, ls), system commands, or running installed tools.
+
+**Parameters:**
+- `sandboxId` (string, required) - Sandbox ID from `sandock_create_sandbox`
+- `command` (string | string[], required) - Shell command: `"ls -la"` or `["bash", "-c", "ls"]`
+- `workdir` (string, optional) - Working directory
+- `timeout` (number, optional) - Timeout in seconds (default: 30, max: 300)
+- `env` (object, optional) - Environment variables
+
+**Returns:**
+- `success` (boolean) - Whether command succeeded (exit code 0)
 - `exitCode` (number) - Process exit code
 - `stdout` (string) - Standard output
 - `stderr` (string) - Standard error
 - `timedOut` (boolean) - Whether execution timed out
-- `durationMs` (number) - Execution duration in milliseconds
-- `sandboxId` (string) - ID of the sandbox used (for debugging)
-- `executionFailed` (boolean, optional) - Present if exit code is non-zero
-- `timeout` (boolean, optional) - Present if execution timed out
-- `troubleshooting` (array, optional) - Suggested troubleshooting steps on failure
-
-**Error Response** (on API/network issues):
-- `success` (false)
-- `errorType` (string) - Type of error: `CONFIGURATION_ERROR`, `AUTHENTICATION_ERROR`, `RATE_LIMIT_ERROR`, `SERVICE_UNAVAILABLE`, `INVALID_REQUEST`, `CODE_EXECUTION_FAILED`, `SANDBOX_NOT_FOUND`, `EXECUTION_TIMEOUT`, `REQUEST_TOO_LARGE`, `INVALID_CODE`, `PERMISSION_DENIED`, or `INTERNAL_ERROR`
-- `error` (string) - Brief error description
-- `message` (string) - Detailed error message
-- `details` (object) - Error context (status code, API URL, error message preview, etc.)
-- `solutions` (array) - Suggested solutions to resolve the issue
-- `documentation` (string, optional) - Link to relevant documentation
+- `durationMs` (number) - Execution duration
+- `sandboxId` (string) - Sandbox ID
 
 **Examples:**
-
-JavaScript:
-```typescript
+```json
+// List files
 {
-  "language": "javascript",
-  "code": "console.log('Hello from JavaScript!');\nconst result = 2 + 2;\nconsole.log(`2 + 2 = ${result}`);",
-  "timeout": 30
+  "sandboxId": "sbx_abc123",
+  "command": "ls -lh /workspace"
+}
+
+// Extract ZIP file
+{
+  "sandboxId": "sbx_abc123",
+  "command": "unzip /workspace/data.zip -d /workspace/data"
+}
+
+// Read file content
+{
+  "sandboxId": "sbx_abc123",
+  "command": "cat /workspace/result.json"
 }
 ```
 
-Python:
-```typescript
+---
+
+### 3. sandock_write_file
+
+Write text content to a file in the sandbox. Use for creating scripts, configuration files, or text data.
+
+**Parameters:**
+- `sandboxId` (string, required) - Sandbox ID
+- `path` (string, required) - File path in sandbox (e.g., `/workspace/script.py`)
+- `content` (string, required) - Text content to write
+- `executable` (boolean, optional) - Make file executable
+
+**Returns:**
+- `success` (boolean) - Whether write succeeded
+- `path` (string) - File path
+- `sandboxId` (string) - Sandbox ID
+- `message` (string) - Success message
+
+**Example:**
+```json
 {
-  "language": "python",
-  "code": "print('Hello from Python!')\nimport sys\nprint(f'Python {sys.version}')\nresult = sum([1, 2, 3, 4, 5])\nprint(f'Sum: {result}')",
-  "timeout": 30
+  "sandboxId": "sbx_abc123",
+  "path": "/workspace/analyze.py",
+  "content": "import pandas as pd\ndf = pd.read_csv('data.csv')\nprint(df.describe())"
 }
 ```
 
-TypeScript:
-```typescript
+---
+
+### 4. sandock_download_file
+
+Download a file from URL into the sandbox. Use for importing user-uploaded files (ZIP, CSV, images). File content never passes through the agent, avoiding token consumption.
+
+**Parameters:**
+- `sandboxId` (string, required) - Sandbox ID
+- `url` (string, required) - URL of file to download
+- `targetPath` (string, required) - Target path in sandbox (e.g., `/workspace/data.zip`)
+- `timeout` (number, optional) - Timeout in seconds (default: 60, max: 300)
+
+**Returns:**
+- `success` (boolean) - Whether download succeeded
+- `path` (string) - File path in sandbox
+- `url` (string) - Source URL
+- `sizeBytes` (number, optional) - File size
+- `sandboxId` (string) - Sandbox ID
+
+**Example:**
+```json
 {
-  "language": "typescript",
-  "code": "interface Person {\n  name: string;\n  age: number;\n}\n\nconst person: Person = { name: 'Alice', age: 30 };\nconsole.log(`${person.name} is ${person.age} years old`);",
-  "timeout": 30
+  "sandboxId": "sbx_abc123",
+  "url": "https://cdn.example.com/uploads/data.zip",
+  "targetPath": "/workspace/data.zip",
+  "timeout": 120
 }
+```
+
+---
+
+### 5. sandock_delete_sandbox
+
+Delete a sandbox and free resources. Always call this when done to prevent resource leaks.
+
+**Parameters:**
+- `sandboxId` (string, required) - Sandbox ID to delete
+
+**Returns:**
+- `success` (boolean) - Whether deletion succeeded
+- `sandboxId` (string) - Deleted sandbox ID
+- `message` (string) - Success message
+
+**Example:**
+```json
+{
+  "sandboxId": "sbx_abc123"
+}
+```
+
+---
+
+### 6. sandock_run_code (Legacy)
+
+Execute code in an isolated sandbox (legacy tool - creates and destroys sandbox automatically).
+
+**Parameters:**
+- `language` (string, required) - `"javascript"`, `"typescript"`, or `"python"`
+- `code` (string, required) - Code to execute
+- `timeout` (number, optional) - Timeout in seconds (default: 30, max: 300)
+
+**Returns:**
+- `success` (boolean) - Whether execution succeeded
+- `exitCode` (number) - Process exit code
+- `stdout` (string) - Standard output
+- `stderr` (string) - Standard error
+- `sandboxId` (string) - Sandbox ID (auto-cleaned)
+
+## Workflow Examples
+
+### Data Analysis Workflow
+
+```javascript
+// 1. Create sandbox
+const { sandboxId } = await sandock_create_sandbox({
+  name: "data-analysis",
+  image: "python:3.11-slim"
+})
+
+// 2. Download user-uploaded file
+await sandock_download_file({
+  sandboxId,
+  url: "https://cdn.platform.com/uploads/sales_data.zip",
+  targetPath: "/workspace/data.zip"
+})
+
+// 3. Extract ZIP
+await sandock_shell_exec({
+  sandboxId,
+  command: "unzip /workspace/data.zip -d /workspace/data"
+})
+
+// 4. List extracted files
+const { stdout } = await sandock_shell_exec({
+  sandboxId,
+  command: "ls /workspace/data"
+})
+
+// 5. Write Python analysis script
+await sandock_write_file({
+  sandboxId,
+  path: "/workspace/analyze.py",
+  content: `
+import pandas as pd
+import json
+
+df = pd.read_csv('/workspace/data/sales.csv')
+result = {
+  'total_sales': float(df['amount'].sum()),
+  'avg_sales': float(df['amount'].mean()),
+  'count': len(df)
+}
+
+with open('/workspace/result.json', 'w') as f:
+  json.dump(result, f)
+
+print(json.dumps(result, indent=2))
+`
+})
+
+// 6. Execute analysis
+const { stdout: analysisResult } = await sandock_shell_exec({
+  sandboxId,
+  command: "python /workspace/analyze.py"
+})
+
+// 7. Read result file
+const { stdout: resultContent } = await sandock_shell_exec({
+  sandboxId,
+  command: "cat /workspace/result.json"
+})
+
+// 8. Clean up
+await sandock_delete_sandbox({ sandboxId })
+```
+
+### Simple Code Execution (One-off)
+
+For simple code execution, use the legacy `sandock_run_code` tool:
+
+```javascript
+const result = await sandock_run_code({
+  language: "python",
+  code: "print('Hello World!')",
+  timeout: 30
+})
 ```
 
 ## Development & Testing
