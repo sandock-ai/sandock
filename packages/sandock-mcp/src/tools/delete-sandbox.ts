@@ -28,7 +28,7 @@ export async function deleteSandbox(args: DeleteSandboxArgs, context: ToolContex
       });
     }
 
-    const { data, error } = await client.DELETE("/api/sandbox/{id}", {
+    const { data, error } = await client.DELETE("/api/v1/sandbox/{id}", {
       params: {
         path: { id: args.sandboxId },
       },

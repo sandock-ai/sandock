@@ -31,7 +31,7 @@ export async function writeFile(args: WriteFileArgs, context: ToolContext) {
       });
     }
 
-    const { data, error } = await client.POST("/api/sandbox/{id}/fs/write", {
+    const { data, error } = await client.POST("/api/v1/sandbox/{id}/fs/write", {
       params: {
         path: { id: args.sandboxId },
       },

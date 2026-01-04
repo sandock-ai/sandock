@@ -49,7 +49,7 @@ export async function shellExec(args: ShellExecArgs, context: ToolContext) {
 
     const maxTimeout = Math.min(args.timeout, 300);
 
-    const { data, error } = await client.POST("/api/sandbox/{id}/shell", {
+    const { data, error } = await client.POST("/api/v1/sandbox/{id}/shell", {
       params: {
         path: { id: args.sandboxId },
       },

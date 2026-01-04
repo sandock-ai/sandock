@@ -40,7 +40,7 @@ export async function downloadFile(args: DownloadFileArgs, context: ToolContext)
     const maxTimeout = Math.min(args.timeout, 300);
 
     // Try wget first
-    let { data, error } = await client.POST("/api/sandbox/{id}/shell", {
+    let { data, error } = await client.POST("/api/v1/sandbox/{id}/shell", {
       params: {
         path: { id: args.sandboxId },
       },
@@ -54,7 +54,7 @@ export async function downloadFile(args: DownloadFileArgs, context: ToolContext)
     if (error || !data || data.data.exitCode !== 0) {
       const wgetError = error || data?.data.stderr;
 
-      ({ data, error } = await client.POST("/api/sandbox/{id}/shell", {
+      ({ data, error } = await client.POST("/api/v1/sandbox/{id}/shell", {
         params: {
           path: { id: args.sandboxId },
         },
@@ -119,7 +119,7 @@ export async function downloadFile(args: DownloadFileArgs, context: ToolContext)
     }
 
     // Verify file was downloaded by checking if it exists
-    const { data: verifyData } = await client.POST("/api/sandbox/{id}/shell", {
+    const { data: verifyData } = await client.POST("/api/v1/sandbox/{id}/shell", {
       params: {
         path: { id: args.sandboxId },
       },
@@ -144,7 +144,7 @@ export async function downloadFile(args: DownloadFileArgs, context: ToolContext)
     }
 
     // Get file size
-    const { data: sizeData } = await client.POST("/api/sandbox/{id}/shell", {
+    const { data: sizeData } = await client.POST("/api/v1/sandbox/{id}/shell", {
       params: {
         path: { id: args.sandboxId },
       },
@@ -154,7 +154,7 @@ export async function downloadFile(args: DownloadFileArgs, context: ToolContext)
       },
     });
 
-    const fileSize = sizeData?.data.stdout ? parseInt(sizeData.data.stdout.trim()) : undefined;
+    const fileSize = sizeData?.data.stdout ? parseInt(sizeData.data.stdout.trim(), 10) : undefined;
 
     return formatResponse({
       success: true,

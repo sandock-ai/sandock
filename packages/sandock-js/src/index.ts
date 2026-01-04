@@ -7,74 +7,47 @@
  * ```ts
  * import { createSandockClient } from 'sandock-js'
  *
- * // Production usage (default)
- * const client = createSandockClient()
- *
- * // Or with explicit configuration
+ * // Create client
  * const client = createSandockClient({
  *   baseUrl: 'https://sandock.ai',
  *   headers: { 'Authorization': 'Bearer your-api-key' }
  * })
  *
- * // Type-safe API calls with automatic inference
- * const { data, error } = await client.GET('/api/meta')
- * if (data) {
- *   console.log(data.data.version)
- * }
- *
- * // Get user by ID
- * const user = await client.GET('/api/user/{id}', {
- *   params: { path: { id: 'u_12345' } }
+ * // Create sandbox and run code
+ * const sandbox = await client.sandbox.create({ image: 'node:20-alpine' })
+ * const result = await client.sandbox.runCode(sandbox.data.id, {
+ *   language: 'javascript',
+ *   code: 'console.log("hello")'
  * })
+ *
+ * // Stream output in real-time (just add callbacks)
+ * await client.sandbox.runCode(sandboxId, { language: 'python', code: 'print("hi")' }, {
+ *   onStdout: (chunk) => console.log(chunk),
+ *   onStderr: (chunk) => console.error(chunk),
+ * })
+ *
+ * // Shell with streaming
+ * await client.sandbox.shell(sandboxId, 'ls -la', {
+ *   onStdout: (chunk) => process.stdout.write(chunk),
+ * })
+ *
+ * // Raw API access (openapi-fetch)
+ * const { data } = await client.GET('/api/v1/meta')
  * ```
  */
 
-import createClient from "openapi-fetch";
-import type { paths } from "./schema";
-
-export type SandockClient = ReturnType<typeof createClient<paths>>;
-
-export interface SandockClientOptions {
-  /**
-   * Base URL for the Sandock API
-   * @default 'https://sandock.ai'
-   */
-  baseUrl?: string;
-
-  /**
-   * Optional headers to include with every request
-   */
-  headers?: Record<string, string>;
-
-  /**
-   * Optional fetch implementation (useful for custom fetch or Node.js environments)
-   */
-  fetch?: typeof globalThis.fetch;
-}
-
-/**
- * Create a type-safe Sandock API client
- *
- * @param options - Client configuration options
- * @returns Type-safe API client with GET, POST, PUT, DELETE, etc. methods
- *
- * @example
- * ```ts
- * const client = createSandockClient({
- *   baseUrl: 'https://sandock.ai',
- *   headers: { 'Authorization': 'Bearer token' }
- * })
- * ```
- */
-export const createSandockClient = (options: SandockClientOptions = {}): SandockClient => {
-  const { baseUrl = "https://sandock.ai", headers, fetch: customFetch } = options;
-
-  return createClient<paths>({
-    baseUrl,
-    headers,
-    fetch: customFetch,
-  });
-};
+// Types
+export type {
+  ExecutionResult,
+  RunCodeOptions,
+  SandboxCreateOptions,
+  SandockClient,
+  SandockClientOptions,
+  ShellOptions,
+  StreamCallbacks,
+} from "./client";
+// Main client export
+export { createSandockClient } from "./client";
 
 // Re-export types from schema for convenience
 export type { components, paths } from "./schema";

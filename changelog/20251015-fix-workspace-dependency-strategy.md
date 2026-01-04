@@ -1,3 +1,7 @@
+---
+title: 2025-10-15 Fix Workspace Dependency Strategy for npm Publishing
+---
+
 # Fix Workspace Dependency Strategy for npm Publishing
 
 Date: 2025-10-15

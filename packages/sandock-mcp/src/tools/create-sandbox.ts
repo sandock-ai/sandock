@@ -46,7 +46,7 @@ export async function createSandbox(args: CreateSandboxArgs, context: ToolContex
 
     const sandboxName = args.name || `mcp-sandbox-${randomUUID().slice(0, 8)}`;
 
-    const { data, error } = await client.POST("/api/sandbox", {
+    const { data, error } = await client.POST("/api/v1/sandbox", {
       body: {
         name: sandboxName,
         image: SANDOCK_PYTHON_IMAGE,

@@ -1,3 +1,7 @@
+---
+title: 2025-11-04 Fix TypeScript Compilation Errors in sandock-cli and sandock-js
+---
+
 # Fix TypeScript Compilation Errors in sandock-cli and sandock-js
 
 Date: 2025-11-04

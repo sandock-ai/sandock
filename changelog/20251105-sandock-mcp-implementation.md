@@ -1,3 +1,7 @@
+---
+title: 2025-11-05 Sandock MCP (Model Context Protocol) Server Implementation
+---
+
 # Sandock MCP (Model Context Protocol) Server Implementation
 
 Date: 2025-11-05

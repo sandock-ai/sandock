@@ -57,7 +57,7 @@ export async function runCode(args: RunCodeArgs, context: ToolContext) {
     // Step 1: Create a new sandbox
     const sandboxName = `mcp-python-${randomUUID().slice(0, 8)}`;
 
-    const { data: createData, error: createError } = await client.POST("/api/sandbox", {
+    const { data: createData, error: createError } = await client.POST("/api/v1/sandbox", {
       body: {
         name: sandboxName,
         image: SANDOCK_PYTHON_IMAGE,
@@ -132,7 +132,7 @@ export async function runCode(args: RunCodeArgs, context: ToolContext) {
     sandboxId = createData.data.id;
 
     // Step 2: Execute code using the /code endpoint
-    const { data: execData, error: execError } = await client.POST("/api/sandbox/{id}/code", {
+    const { data: execData, error: execError } = await client.POST("/api/v1/sandbox/{id}/code", {
       params: {
         path: { id: sandboxId },
       },
@@ -275,7 +275,7 @@ export async function runCode(args: RunCodeArgs, context: ToolContext) {
     // Step 4: Clean up the sandbox (async, non-blocking)
     if (sandboxId) {
       client
-        .DELETE("/api/sandbox/{id}", {
+        .DELETE("/api/v1/sandbox/{id}", {
           params: {
             path: { id: sandboxId },
           },

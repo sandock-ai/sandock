@@ -75,8 +75,25 @@ sandock sandbox info sb_12345
 #### Execute commands
 
 ```bash
+# Basic execution
 sandock sandbox exec sb_12345 "node -v"
 sandock sandbox exec sb_12345 "python script.py" --timeout 60
+
+# Stream output in real-time
+sandock sandbox exec sb_12345 "echo hello; sleep 1; echo world" --stream
+```
+
+#### Run code
+
+```bash
+# Run JavaScript code
+sandock sandbox run-code sb_12345 -l javascript -c "console.log('hello')"
+
+# Run Python code from file with streaming
+sandock sandbox run-code sb_12345 -l python -f script.py --stream
+
+# Run TypeScript inline
+sandock sandbox run-code sb_12345 -l typescript -c "const x: number = 1; console.log(x)" -s
 ```
 
 ## Available Commands
@@ -116,14 +133,29 @@ Get detailed information about a sandbox
 
 ### `sandock sandbox exec <id> <command>`
 
-Execute a command in a sandbox
+Execute a shell command in a sandbox
 
 **Args:**
 - `id` (required): Sandbox ID
-- `command` (required): Command to execute
+- `command` (required): Shell command to execute
 
 **Flags:**
 - `--timeout, -t <seconds>`: Execution timeout in seconds (default: 30)
+- `--stream, -s`: Stream output in real-time
+
+### `sandock sandbox run-code <id>`
+
+Execute code in a sandbox
+
+**Args:**
+- `id` (required): Sandbox ID
+
+**Flags:**
+- `--language, -l <lang>` (required): Programming language (javascript, typescript, python)
+- `--code, -c <code>`: Inline code to execute
+- `--file, -f <path>`: Path to code file to execute
+- `--timeout, -t <seconds>`: Execution timeout in seconds (default: 30)
+- `--stream, -s`: Stream output in real-time
 
 ## Examples
 
@@ -137,8 +169,20 @@ sandock sandbox create --name my-app --image node:20
 # List all sandboxes
 sandock sandbox list
 
-# Execute code in a sandbox
+# Execute shell command in a sandbox
 sandock sandbox exec sb_abc123 "npm install && npm start"
+
+# Execute with streaming output
+sandock sandbox exec sb_abc123 "echo start; sleep 2; echo done" --stream
+
+# Run JavaScript code
+sandock sandbox run-code sb_abc123 -l javascript -c "console.log('Hello')"
+
+# Run Python code with streaming
+sandock sandbox run-code sb_abc123 -l python -c "print('Hello from Python')" --stream
+
+# Run code from file
+sandock sandbox run-code sb_abc123 -l python -f ./script.py --stream
 
 # Check sandbox info
 sandock sandbox info sb_abc123

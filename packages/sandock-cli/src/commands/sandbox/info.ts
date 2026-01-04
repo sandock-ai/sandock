@@ -23,20 +23,12 @@ export default class SandboxInfo extends Command {
     const client = getClient();
 
     try {
-      const { data, error } = await client.GET("/api/user/{id}", {
-        params: { path: { id: args.id } },
-      });
-
-      if (error || !data) {
-        this.error(chalk.red(`Failed to get sandbox info: ${JSON.stringify(error)}`));
-      }
-
-      const info = data.data;
+      const result = await client.sandbox.get(args.id);
 
       this.log(chalk.bold("\n📦 Sandbox Information\n"));
 
-      if (typeof info === "object" && info !== null) {
-        this.log(JSON.stringify(info, null, 2));
+      if (result.data && typeof result.data === "object") {
+        this.log(JSON.stringify(result.data, null, 2));
       } else {
         this.log(chalk.gray("No detailed information available"));
       }

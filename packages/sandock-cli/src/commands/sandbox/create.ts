@@ -40,7 +40,7 @@ export default class SandboxCreate extends Command {
     try {
       spinner.start("Creating sandbox...");
 
-      const { data, error } = await client.POST("/api/sandbox", {
+      const { data, error } = await client.POST("/api/v1/sandbox", {
         body: {
           ...(flags.space && { spaceId: flags.space }),
           name: flags.name,

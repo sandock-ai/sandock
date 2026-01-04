@@ -39,7 +39,7 @@ export default class SandboxList extends Command {
         : undefined;
 
       // biome-ignore lint/suspicious/noExplicitAny: Schema is outdated - spaceId query param is optional
-      const { data, error } = await client.GET("/api/sandbox", requestParams as any);
+      const { data, error } = await client.GET("/api/v1/sandbox", requestParams as any);
 
       if (error || !data) {
         this.error(chalk.red(`Failed to fetch sandboxes: ${error || "Unknown error"}`));

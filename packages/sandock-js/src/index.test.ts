@@ -1,5 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createSandockClient } from "./index";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { createSandockClient, replayExecutionResult } from "./index";
 
 const DEFAULT_BASE_URL = process.env.SANDOCK_API_URL || "http://localhost:3030";
 const TEST_TIMEOUT = 60_000; // 60 seconds for most tests
@@ -182,6 +182,23 @@ describe("createSandockClient", () => {
       fetch: customFetch as typeof fetch,
     });
     expect(client).toBeDefined();
+  });
+});
+
+describe("replayExecutionResult", () => {
+  it("should invoke stdout/stderr callbacks in order", () => {
+    const stdoutChunks: string[] = [];
+    const stderrChunks: string[] = [];
+    const onStdout = vi.fn((c: string) => stdoutChunks.push(c));
+    const onStderr = vi.fn((c: string) => stderrChunks.push(c));
+
+    replayExecutionResult({ stdout: "line1\nline2", stderr: "err1\nerr2" }, { onStdout, onStderr });
+
+    expect(onStdout).toHaveBeenCalled();
+    expect(onStdout.mock.calls[0][0]).toBe("line1");
+    expect(stdoutChunks.join("")).toContain("line2");
+    expect(onStderr).toHaveBeenCalled();
+    expect(stderrChunks.join("")).toContain("err2");
   });
 });
 

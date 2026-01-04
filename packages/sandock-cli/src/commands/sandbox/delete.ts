@@ -56,7 +56,7 @@ export default class SandboxDelete extends Command {
     try {
       spinner.start(`Deleting sandbox ${args.id}...`);
 
-      const { data, error } = await client.DELETE("/api/sandbox/{id}", {
+      const { data, error } = await client.DELETE("/api/v1/sandbox/{id}", {
         params: {
           path: { id: args.id },
         },

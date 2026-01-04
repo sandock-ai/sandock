@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  "/api/meta": {
+  "/api/v1/meta": {
     parameters: {
       query?: never;
       header?: never;
@@ -56,7 +56,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/user/{id}": {
+  "/api/v1/user/{id}": {
     parameters: {
       query?: never;
       header?: never;
@@ -110,7 +110,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/sandbox": {
+  "/api/v1/sandbox": {
     parameters: {
       query?: never;
       header?: never;
@@ -204,7 +204,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/sandbox/{id}/start": {
+  "/api/v1/sandbox/{id}/start": {
     parameters: {
       query?: never;
       header?: never;
@@ -261,7 +261,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/sandbox/{id}/code": {
+  "/api/v1/sandbox/{id}/code": {
     parameters: {
       query?: never;
       header?: never;
@@ -319,7 +319,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/sandbox/{id}/shell": {
+  "/api/v1/sandbox/{id}/shell": {
     parameters: {
       query?: never;
       header?: never;
@@ -377,7 +377,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/sandbox/{id}/fs/write": {
+  "/api/v1/sandbox/{id}/fs/write": {
     parameters: {
       query?: never;
       header?: never;
@@ -435,7 +435,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/sandbox/{id}/fs/read": {
+  "/api/v1/sandbox/{id}/fs/read": {
     parameters: {
       query?: never;
       header?: never;
@@ -494,7 +494,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/sandbox/{id}/fs/list": {
+  "/api/v1/sandbox/{id}/fs/list": {
     parameters: {
       query?: never;
       header?: never;
@@ -554,7 +554,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/sandbox/{id}/fs": {
+  "/api/v1/sandbox/{id}/fs": {
     parameters: {
       query?: never;
       header?: never;
@@ -610,7 +610,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/sandbox/{id}/stop": {
+  "/api/v1/sandbox/{id}/stop": {
     parameters: {
       query?: never;
       header?: never;
@@ -667,7 +667,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/sandbox/{id}": {
+  "/api/v1/sandbox/{id}": {
     parameters: {
       query?: never;
       header?: never;
