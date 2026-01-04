@@ -14,7 +14,7 @@
   "license": "MIT",
   "author": "Sandock Team",
   "scripts": {
-    "build": "pnpm --filter \"./packages/*\" build",
+    "build": "pnpm --filter sandock build && pnpm --filter sandock-cli build && pnpm --filter sandock-mcp build",
     "test": "pnpm --filter \"./packages/*\" test",
     "lint": "pnpm --filter \"./packages/*\" lint",
     "typecheck": "pnpm --filter \"./packages/*\" typecheck",
