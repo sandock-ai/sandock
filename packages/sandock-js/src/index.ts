@@ -27,7 +27,7 @@
  * })
  *
  * // Shell with streaming
- * await client.sandbox.shell(sandboxId, 'ls -la', {
+ * await client.sandbox.shell(sandboxId, { cmd: 'ls -la' }, {
  *   onStdout: (chunk) => process.stdout.write(chunk),
  * })
  *
@@ -47,7 +47,7 @@ export type {
   StreamCallbacks,
 } from "./client";
 // Main client export
-export { createSandockClient } from "./client";
+export { createSandockClient, DEFAULT_TIMEOUT_MS } from "./client";
 
 // Re-export types from schema for convenience
 export type { components, paths } from "./schema";

@@ -101,6 +101,15 @@ const info = await client.sandbox.get('sdbXXX')
 // Returns: { success: true, data: { id: 'sdbXXX', status: 'running' } }
 ```
 
+#### `client.sandbox.delete(sandboxId)`
+
+Delete a sandbox and free resources.
+
+```typescript
+await client.sandbox.delete('sdbXXX')
+// Returns: { success: true, data: { id: 'sdbXXX', deleted: true } }
+```
+
 #### `client.sandbox.runCode(sandboxId, options, callbacks?)`
 
 Execute code in a sandbox. Supports JavaScript, TypeScript, and Python.
@@ -129,21 +138,32 @@ await client.sandbox.runCode('sdbXXX',
 )
 ```
 
-#### `client.sandbox.shell(sandboxId, command, callbacks?)`
+#### `client.sandbox.shell(sandboxId, options, callbacks?)`
 
 Execute a shell command in a sandbox.
 
 **Batch Mode**:
 
 ```typescript
-const result = await client.sandbox.shell('sdbXXX', 'ls -la')
+const result = await client.sandbox.shell('sdbXXX', { cmd: 'ls -la' })
 // Returns: { success: true, data: { stdout, stderr, exitCode, timedOut, durationMs } }
+```
+
+**With Options**:
+
+```typescript
+const result = await client.sandbox.shell('sdbXXX', {
+  cmd: 'npm install',
+  timeoutMs: 60000,           // Optional: timeout in milliseconds (default: 30000)
+  workdir: '/app',            // Optional: working directory
+  env: { NODE_ENV: 'prod' }   // Optional: environment variables
+})
 ```
 
 **Streaming Mode**:
 
 ```typescript
-await client.sandbox.shell('sdbXXX', 'echo "start"; sleep 2; echo "done"', {
+await client.sandbox.shell('sdbXXX', { cmd: 'echo "start"; sleep 2; echo "done"' }, {
   onStdout: (chunk) => process.stdout.write(chunk)
 })
 ```

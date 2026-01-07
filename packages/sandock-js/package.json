@@ -1,6 +1,6 @@
 {
   "name": "sandock",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Lightweight TypeScript SDK for the Sandock - Sandbox in Docker for AI Agents.",
   "type": "module",
   "license": "MIT",
@@ -54,7 +54,6 @@
     "generate:prod": "openapi-typescript https://sandock.com/api/openapi.json -o src/schema.ts"
   },
   "dependencies": {
-    "@tanstack/react-table": "^8.21.3",
     "openapi-fetch": "0.15.0"
   },
   "devDependencies": {

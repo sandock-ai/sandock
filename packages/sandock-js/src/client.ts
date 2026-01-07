@@ -9,6 +9,9 @@ import type { paths } from "./schema";
 // Base openapi-fetch client type
 type OpenAPIClient = ReturnType<typeof createClient<paths>>;
 
+/** Default timeout in milliseconds (30 seconds) */
+export const DEFAULT_TIMEOUT_MS = 30 * 1000;
+
 export interface SandockClientOptions {
   /**
    * Base URL for the Sandock API
@@ -47,14 +50,14 @@ export interface RunCodeOptions {
   language: "javascript" | "typescript" | "python";
   /** Code to execute */
   code: string;
-  /** Timeout in milliseconds */
+  /** Timeout in milliseconds (default: 30000ms = 30s) */
   timeoutMs?: number;
 }
 
 export interface ShellOptions {
   /** Shell command to execute */
   cmd: string;
-  /** Timeout in milliseconds */
+  /** Timeout in milliseconds (default: 30000ms = 30s) */
   timeoutMs?: number;
   /** Working directory */
   workdir?: string;
@@ -149,6 +152,10 @@ export interface SandockClient extends OpenAPIClient {
     stop(sandboxId: string): Promise<{ success: true; data: { id: string; stopped: boolean } }>;
     /** Get sandbox info */
     get(sandboxId: string): Promise<{ success: true; data: { id: string; status: string } }>;
+    /** Delete a sandbox */
+    delete(
+      sandboxId: string,
+    ): Promise<{ success: true; data: { id: string; deleted: boolean } }>;
     /**
      * Run code in a sandbox
      * @param sandboxId - Sandbox ID
@@ -163,12 +170,12 @@ export interface SandockClient extends OpenAPIClient {
     /**
      * Execute shell command in a sandbox
      * @param sandboxId - Sandbox ID
-     * @param command - Shell command to execute
+     * @param options - Shell execution options
      * @param callbacks - Optional streaming callbacks (enables real-time SSE streaming when provided)
      */
     shell(
       sandboxId: string,
-      command: string,
+      options: ShellOptions,
       callbacks?: StreamCallbacks,
     ): Promise<{ success: true; data: ExecutionResult }>;
   };
@@ -224,7 +231,7 @@ export interface SandockClient extends OpenAPIClient {
  * })
  *
  * // Shell command with streaming
- * await client.sandbox.shell(sandboxId, 'ls -la', {
+ * await client.sandbox.shell(sandboxId, { cmd: 'ls -la' }, {
  *   onStdout: (chunk) => process.stdout.write(chunk),
  * })
  *
@@ -305,11 +312,25 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
       return { success: true as const, data: sandbox };
     },
 
+    async delete(sandboxId: string) {
+      const { data, error } = await rawClient.DELETE("/api/v1/sandbox/{id}", {
+        params: { path: { id: sandboxId } },
+      });
+
+      if (error) {
+        throw new Error(`Failed to delete sandbox: ${JSON.stringify(error)}`);
+      }
+
+      return { success: true as const, data: data.data };
+    },
+
     /**
      * Run code in a sandbox
      * When callbacks are provided, uses SSE streaming for real-time output
      */
     async runCode(sandboxId: string, runOptions: RunCodeOptions, callbacks?: StreamCallbacks) {
+      const timeoutMs = runOptions.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
       // If callbacks provided, use SSE streaming endpoint
       if (callbacks) {
         const response = await fetch(`${baseUrl}/api/v1/sandbox/${sandboxId}/code/stream`, {
@@ -321,7 +342,7 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
           body: JSON.stringify({
             language: runOptions.language,
             code: runOptions.code,
-            timeoutMs: runOptions.timeoutMs,
+            timeoutMs,
           }),
         });
 
@@ -339,7 +360,7 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
         body: {
           language: runOptions.language,
           code: runOptions.code,
-          timeoutMs: runOptions.timeoutMs,
+          timeoutMs,
         },
       });
 
@@ -354,7 +375,9 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
      * Execute shell command in a sandbox
      * When callbacks are provided, uses SSE streaming for real-time output
      */
-    async shell(sandboxId: string, command: string, callbacks?: StreamCallbacks) {
+    async shell(sandboxId: string, shellOptions: ShellOptions, callbacks?: StreamCallbacks) {
+      const timeoutMs = shellOptions.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
       // If callbacks provided, use SSE streaming endpoint
       if (callbacks) {
         const response = await fetch(`${baseUrl}/api/v1/sandbox/${sandboxId}/shell/stream`, {
@@ -363,7 +386,12 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
             "Content-Type": "application/json",
             ...headers,
           },
-          body: JSON.stringify({ cmd: command }),
+          body: JSON.stringify({
+            cmd: shellOptions.cmd,
+            timeoutMs,
+            ...(shellOptions.workdir && { workdir: shellOptions.workdir }),
+            ...(shellOptions.env && { env: shellOptions.env }),
+          }),
         });
 
         if (!response.ok) {
@@ -377,7 +405,12 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
       // Non-streaming: use regular endpoint
       const { data, error } = await rawClient.POST("/api/v1/sandbox/{id}/shell", {
         params: { path: { id: sandboxId } },
-        body: { cmd: command },
+        body: {
+          cmd: shellOptions.cmd,
+          timeoutMs,
+          ...(shellOptions.workdir && { workdir: shellOptions.workdir }),
+          ...(shellOptions.env && { env: shellOptions.env }),
+        },
       });
 
       if (error) {

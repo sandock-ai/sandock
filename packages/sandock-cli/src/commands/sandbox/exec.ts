@@ -50,10 +50,14 @@ export default class SandboxExec extends Command {
       this.log(chalk.cyan("Executing command (streaming)...\n"));
 
       try {
-        const result = await client.sandbox.shell(args.id, args.command, {
-          onStdout: (chunk: string) => process.stdout.write(`${chunk}\n`),
-          onStderr: (chunk: string) => process.stderr.write(`${chalk.yellow(chunk)}\n`),
-        });
+        const result = await client.sandbox.shell(
+          args.id,
+          { cmd: args.command, timeoutMs: flags.timeout * 1000 },
+          {
+            onStdout: (chunk: string) => process.stdout.write(`${chunk}\n`),
+            onStderr: (chunk: string) => process.stderr.write(`${chalk.yellow(chunk)}\n`),
+          },
+        );
 
         this.log(chalk.gray(`\n─────────────────────────────────`));
         this.log(chalk.cyan("Exit Code:"), result.data.exitCode);
@@ -72,7 +76,10 @@ export default class SandboxExec extends Command {
       try {
         spinner.start("Executing command...");
 
-        const result = await client.sandbox.shell(args.id, args.command);
+        const result = await client.sandbox.shell(args.id, {
+          cmd: args.command,
+          timeoutMs: flags.timeout * 1000,
+        });
 
         spinner.succeed(chalk.green("Execution completed!"));
 
