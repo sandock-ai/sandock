@@ -141,9 +141,25 @@ async function parseSSEStream(
  * Sandock client with high-level API
  * Extends the base openapi-fetch client with sandbox operations
  */
+/** Sandbox item returned from list */
+export interface SandboxItem {
+  id: string;
+  status: string;
+  image?: string;
+  createdAt?: string;
+}
+
+/** Options for listing sandboxes */
+export interface SandboxListOptions {
+  /** Space ID (optional - uses personal space if not provided) */
+  spaceId?: string;
+}
+
 export interface SandockClient extends OpenAPIClient {
   /** Sandbox operations */
   sandbox: {
+    /** List all sandboxes */
+    list(options?: SandboxListOptions): Promise<{ success: true; data: { items: SandboxItem[] } }>;
     /** Create a new sandbox */
     create(options: SandboxCreateOptions): Promise<{ success: true; data: { id: string } }>;
     /** Start a sandbox */
@@ -153,9 +169,7 @@ export interface SandockClient extends OpenAPIClient {
     /** Get sandbox info */
     get(sandboxId: string): Promise<{ success: true; data: { id: string; status: string } }>;
     /** Delete a sandbox */
-    delete(
-      sandboxId: string,
-    ): Promise<{ success: true; data: { id: string; deleted: boolean } }>;
+    delete(sandboxId: string): Promise<{ success: true; data: { id: string; deleted: boolean } }>;
     /**
      * Run code in a sandbox
      * @param sandboxId - Sandbox ID
@@ -251,6 +265,21 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
 
   // Build high-level API
   const sandbox = {
+    async list(listOptions?: SandboxListOptions) {
+      // biome-ignore lint/suspicious/noExplicitAny: Schema query param typing is complex
+      const requestParams: any = listOptions?.spaceId
+        ? { params: { query: { spaceId: listOptions.spaceId } } }
+        : undefined;
+
+      const { data, error } = await rawClient.GET("/api/v1/sandbox", requestParams);
+
+      if (error) {
+        throw new Error(`Failed to list sandboxes: ${JSON.stringify(error)}`);
+      }
+
+      return { success: true as const, data: { items: data.data.items as SandboxItem[] } };
+    },
+
     async create(createOptions: SandboxCreateOptions) {
       const { data, error } = await rawClient.POST("/api/v1/sandbox", {
         body: {

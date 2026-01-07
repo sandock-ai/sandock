@@ -41,6 +41,8 @@ export type {
   ExecutionResult,
   RunCodeOptions,
   SandboxCreateOptions,
+  SandboxItem,
+  SandboxListOptions,
   SandockClient,
   SandockClientOptions,
   ShellOptions,

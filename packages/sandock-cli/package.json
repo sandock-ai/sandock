@@ -1,6 +1,6 @@
 {
   "name": "sandock-cli",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Command-line interface for Sandock - Sandbox in Docker for AI Agents",
   "type": "module",
   "license": "MIT",
@@ -46,7 +46,7 @@
     "conf": "^13.1.0",
     "inquirer": "^12.10.0",
     "ora": "^8.2.0",
-    "sandock": "workspace:^"
+    "sandock": "2.2.1"
   },
   "devDependencies": {
     "@oclif/prettier-config": "^0.2.1",

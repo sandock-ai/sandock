@@ -56,22 +56,13 @@ export default class SandboxDelete extends Command {
     try {
       spinner.start(`Deleting sandbox ${args.id}...`);
 
-      const { data, error } = await client.DELETE("/api/v1/sandbox/{id}", {
-        params: {
-          path: { id: args.id },
-        },
-      });
-
-      if (error || !data) {
-        spinner.fail(chalk.red("Failed to delete sandbox"));
-        this.error(chalk.red(`Error: ${JSON.stringify(error)}`));
-      }
+      const result = await client.sandbox.delete(args.id);
 
       spinner.succeed(chalk.green("Sandbox deleted successfully!"));
 
       this.log(chalk.bold("\n✨ Delete Result:"));
-      this.log(chalk.cyan("Sandbox ID:"), data.data.id);
-      this.log(chalk.cyan("Deleted:"), data.data.deleted ? "Yes" : "No");
+      this.log(chalk.cyan("Sandbox ID:"), result.data.id);
+      this.log(chalk.cyan("Deleted:"), result.data.deleted ? "Yes" : "No");
     } catch (error) {
       spinner.fail(chalk.red("Failed to delete sandbox"));
       this.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));

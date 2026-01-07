@@ -34,18 +34,11 @@ export default class SandboxList extends Command {
     try {
       this.log(chalk.cyan("Fetching sandboxes..."));
 
-      const requestParams = flags.space
-        ? { params: { query: { spaceId: flags.space } } }
-        : undefined;
+      const result = await client.sandbox.list(
+        flags.space ? { spaceId: flags.space } : undefined,
+      );
 
-      // biome-ignore lint/suspicious/noExplicitAny: Schema is outdated - spaceId query param is optional
-      const { data, error } = await client.GET("/api/v1/sandbox", requestParams as any);
-
-      if (error || !data) {
-        this.error(chalk.red(`Failed to fetch sandboxes: ${error || "Unknown error"}`));
-      }
-
-      const sandboxes = data.data?.items || [];
+      const sandboxes = result.data.items || [];
 
       if (sandboxes.length === 0) {
         this.log(chalk.yellow("\nNo sandboxes found"));
@@ -56,7 +49,10 @@ export default class SandboxList extends Command {
 
       for (const sandbox of sandboxes.slice(0, flags.limit)) {
         this.log(chalk.green(`● ${sandbox.id}`));
-        this.log(`  ID: ${chalk.gray(sandbox.id)}`);
+        this.log(`  Status: ${chalk.gray(sandbox.status)}`);
+        if (sandbox.image) {
+          this.log(`  Image: ${chalk.gray(sandbox.image)}`);
+        }
         this.log("");
       }
     } catch (error) {
