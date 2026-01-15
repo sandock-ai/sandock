@@ -206,6 +206,85 @@ await client.fs.delete('sdbXXX', '/sandbox/temp.txt')
 // Returns: { success: true, data: true }
 ```
 
+### Volume Operations
+
+Volumes provide persistent storage that can be mounted to sandboxes.
+
+#### `client.volume.list()`
+
+List all volumes in the current space.
+
+```typescript
+const volumes = await client.volume.list()
+// Returns: { success: true, data: { volumes: [{ id, name, status, ... }] } }
+```
+
+#### `client.volume.create(name, metadata?)`
+
+Create a new volume.
+
+```typescript
+const volume = await client.volume.create('my-data')
+// Returns: { success: true, data: { id: 'vol_xxx', name: 'my-data', status: 'ready', ... } }
+
+// With optional metadata
+const volume = await client.volume.create('my-data', { project: 'demo' })
+```
+
+#### `client.volume.get(volumeId)`
+
+Get volume by ID.
+
+```typescript
+const volume = await client.volume.get('vol_xxx')
+// Returns: { success: true, data: { id, name, status, sizeBytes, ... } }
+```
+
+#### `client.volume.getByName(name, create?)`
+
+Get volume by name, optionally creating if it doesn't exist.
+
+```typescript
+// Get existing volume
+const volume = await client.volume.getByName('my-data')
+
+// Get or create volume
+const volume = await client.volume.getByName('my-data', true)
+```
+
+#### `client.volume.delete(volumeId)`
+
+Delete a volume. Note: Cannot delete volumes that are mounted to active sandboxes.
+
+```typescript
+await client.volume.delete('vol_xxx')
+// Returns: { success: true, data: { id: 'vol_xxx', deleted: true } }
+```
+
+### Creating Sandbox with Volume Mounts
+
+Mount volumes to sandboxes for persistent storage:
+
+```typescript
+// First, create or get a volume
+const volume = await client.volume.getByName('my-data', true)
+
+// Create sandbox with volume mount
+const sandbox = await client.sandbox.create({
+  image: 'node:20-alpine',
+  volumes: [
+    {
+      volumeId: volume.data.id,
+      mountPath: '/data',           // Mount path inside container
+      subpath: 'project1'           // Optional: subdirectory within volume
+    }
+  ]
+})
+
+// Data written to /data will persist across sandbox restarts
+await client.sandbox.shell(sandbox.data.id, { cmd: 'echo "hello" > /data/test.txt' })
+```
+
 ### Meta Information
 
 #### `client.getMeta()`
@@ -260,7 +339,9 @@ import type {
   SandboxCreateOptions,
   RunCodeOptions,
   ExecutionResult,
-  StreamCallbacks 
+  StreamCallbacks,
+  VolumeInfo,
+  VolumeMountInput
 } from 'sandock'
 ```
 

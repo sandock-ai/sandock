@@ -34,9 +34,7 @@ export default class SandboxList extends Command {
     try {
       this.log(chalk.cyan("Fetching sandboxes..."));
 
-      const result = await client.sandbox.list(
-        flags.space ? { spaceId: flags.space } : undefined,
-      );
+      const result = await client.sandbox.list(flags.space ? { spaceId: flags.space } : undefined);
 
       const sandboxes = result.data.items || [];
 
