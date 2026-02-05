@@ -1,6 +1,6 @@
 {
   "name": "sandock",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "description": "Lightweight TypeScript SDK for the Sandock - Sandbox in Docker for AI Agents.",
   "type": "module",
   "license": "MIT",

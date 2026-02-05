@@ -4,7 +4,7 @@
  */
 
 import createClient from "openapi-fetch";
-import type { paths } from "./schema";
+import type { components, paths } from "./schema";
 
 // Base openapi-fetch client type
 type OpenAPIClient = ReturnType<typeof createClient<paths>>;
@@ -243,7 +243,10 @@ export interface SandockClient extends OpenAPIClient {
     /** List all volumes in the current space */
     list(): Promise<{ success: true; data: { volumes: VolumeInfo[] } }>;
     /** Create a new volume */
-    create(name: string, metadata?: Record<string, unknown>): Promise<{ success: true; data: VolumeInfo }>;
+    create(
+      name: string,
+      metadata?: Record<string, unknown>,
+    ): Promise<{ success: true; data: VolumeInfo }>;
     /** Get volume by ID */
     get(volumeId: string): Promise<{ success: true; data: VolumeInfo }>;
     /** Get volume by name, optionally creating if not exists */
@@ -303,7 +306,8 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
   // Build high-level API
   const sandbox = {
     async list(listOptions?: SandboxListOptions) {
-      // biome-ignore lint/suspicious/noExplicitAny: Schema query param typing is complex
+      // Note: Schema doesn't have spaceId query param but server supports it
+      // biome-ignore lint/suspicious/noExplicitAny: Schema query param typing needs update
       const requestParams: any = listOptions?.spaceId
         ? { params: { query: { spaceId: listOptions.spaceId } } }
         : undefined;
@@ -318,16 +322,22 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
     },
 
     async create(createOptions: SandboxCreateOptions) {
+      // Build request body with correct field names for the server API
+      // SDK uses user-friendly names (cpu, memory) but server expects (cpuShares, memoryLimitMb)
+      const requestBody: Record<string, unknown> = {
+        image: createOptions.image,
+      };
+
+      // Optional fields - only include if provided
+      if (createOptions.spaceId) requestBody.spaceId = createOptions.spaceId;
+      if (createOptions.command) requestBody.command = createOptions.command;
+      if (createOptions.env) requestBody.env = createOptions.env;
+      if (createOptions.cpu) requestBody.cpuShares = createOptions.cpu;
+      if (createOptions.memory) requestBody.memoryLimitMb = createOptions.memory;
+      if (createOptions.volumes) requestBody.volumes = createOptions.volumes;
+
       const { data, error } = await rawClient.POST("/api/v1/sandbox", {
-        body: {
-          spaceId: createOptions.spaceId,
-          image: createOptions.image,
-          command: createOptions.command,
-          env: createOptions.env,
-          cpu: createOptions.cpu,
-          memory: createOptions.memory,
-          volumes: createOptions.volumes,
-        },
+        body: requestBody as components["schemas"]["CreateSandboxRequest"],
       });
 
       if (error) {
@@ -563,8 +573,8 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
         throw new Error(`Failed to list volumes: ${response.statusText}`);
       }
 
-      const result = await response.json();
-      return { success: true as const, data: (result as any).data as { volumes: VolumeInfo[] } };
+      const result = (await response.json()) as { data: { volumes: VolumeInfo[] } };
+      return { success: true as const, data: result.data };
     },
 
     async create(name: string, metadata?: Record<string, unknown>) {
@@ -581,8 +591,8 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
         throw new Error(`Failed to create volume: ${response.statusText}`);
       }
 
-      const result = await response.json();
-      return { success: true as const, data: (result as any).data as VolumeInfo };
+      const result = (await response.json()) as { data: VolumeInfo };
+      return { success: true as const, data: result.data };
     },
 
     async get(volumeId: string) {
@@ -598,8 +608,8 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
         throw new Error(`Failed to get volume: ${response.statusText}`);
       }
 
-      const result = await response.json();
-      return { success: true as const, data: (result as any).data as VolumeInfo };
+      const result = (await response.json()) as { data: VolumeInfo };
+      return { success: true as const, data: result.data };
     },
 
     async getByName(name: string, create = false) {
@@ -620,8 +630,8 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
         throw new Error(`Failed to get volume by name: ${response.statusText}`);
       }
 
-      const result = await response.json();
-      return { success: true as const, data: (result as any).data as VolumeInfo };
+      const result = (await response.json()) as { data: VolumeInfo };
+      return { success: true as const, data: result.data };
     },
 
     async delete(volumeId: string) {
@@ -637,8 +647,8 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
         throw new Error(`Failed to delete volume: ${response.statusText}`);
       }
 
-      const result = await response.json();
-      return { success: true as const, data: (result as any).data as { id: string; deleted: boolean } };
+      const result = (await response.json()) as { data: { id: string; deleted: boolean } };
+      return { success: true as const, data: result.data };
     },
   };
 

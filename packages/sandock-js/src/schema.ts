@@ -743,6 +743,8 @@ export interface components {
     };
     CreateSandboxRequest: {
       actorUserId?: string;
+      /** @description Target space/workspace ID. If not provided, uses the first space the user has access to. */
+      spaceId?: string;
       /** @example sandockai/sandock-code:latest */
       image?: string;
       /** @example python:3.12-slim */
@@ -750,8 +752,26 @@ export interface components {
       pull?: boolean;
       memoryLimitMb?: number;
       cpuShares?: number;
+      /** @description Enable persistent storage for this sandbox */
+      persistenceEnabled?: boolean;
       workdir?: string;
       keep?: boolean;
+      /** @description Maximum runtime for sandbox in seconds (Kubernetes only). Default: 1800 (30 min), Max: 86400 (24 hours) */
+      activeDeadlineSeconds?: number;
+      /** @description Optional command to override default container command (Kubernetes only) */
+      command?: string[];
+      env?: {
+        [key: string]: string;
+      };
+      /** @description Volume mounts for persistent storage. Each volume must be in ready state and belong to the same space. */
+      volumes?: {
+        /** Volume ID to mount */
+        volumeId: string;
+        /** Mount path inside the sandbox */
+        mountPath: string;
+        /** Optional subpath within the volume */
+        subpath?: string;
+      }[];
     };
     SandboxExecutionResult: {
       stdout: string;
@@ -766,6 +786,9 @@ export interface components {
       code: string;
       timeoutMs?: number;
       input?: string;
+      env?: {
+        [key: string]: string;
+      };
     };
     ShellRequest: {
       cmd: string | string[];
