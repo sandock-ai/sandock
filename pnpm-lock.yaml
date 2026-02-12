@@ -26,8 +26,8 @@ importers:
         specifier: ^8.2.0
         version: 8.2.0
       sandock:
-        specifier: 2.2.2
-        version: 2.2.2
+        specifier: 2.2.3
+        version: 2.2.3
     devDependencies:
       '@oclif/prettier-config':
         specifier: ^0.2.1
@@ -1290,8 +1290,8 @@ packages:
   sandock@0.2.5:
     resolution: {integrity: sha512-emT9g9pcPDZufsEGTvUlSXlK/Busd/bhZDJwJts/8YQk1nFVDZNmxOqm3wbwRegPobiTgOeOInkQRiPAImRsLQ==}
 
-  sandock@2.2.2:
-    resolution: {integrity: sha512-4LG3IabQIQjWru8CVjNn9pDghPg4h3G/4ym95bj+8Uph0ddCTAhpkU5pTsogDmBvspzabq+Ow04eVCSrdKnG2A==}
+  sandock@2.2.3:
+    resolution: {integrity: sha512-nNxXmh8e8YmGmTLEiR1CDoiWarqQvqRTy1PXOu+4ic/qji1LK/kky6wDfkCu7mRypVgE6QEvtPqdIVTSvtOBRw==}
 
   semver@7.7.3:
     resolution: {integrity: sha512-SdsKMrI9TdgjdweUSR9MweHA4EJ8YxHn8DFaDisvhVlUOe4BF1tLD7GAj0lIqWVl+dPb/rExr0Btby5loQm20Q==}
@@ -2815,7 +2815,7 @@ snapshots:
     dependencies:
       openapi-fetch: 0.15.0
 
-  sandock@2.2.2:
+  sandock@2.2.3:
     dependencies:
       openapi-fetch: 0.15.0
 

@@ -42,7 +42,7 @@ beforeAll(async () => {
   console.log(`[TEST] Testing against: ${DEFAULT_BASE_URL}`);
 
   try {
-    const { data, error } = await client.GET("/api/meta");
+    const { data, error } = await client.GET("/api/v1/meta");
 
     if (data?.success) {
       serverAvailable = true;
@@ -68,7 +68,7 @@ afterAll(async () => {
   if (serverAvailable && testSandboxId) {
     console.log(`[TEST] Cleaning up test sandbox: ${testSandboxId}`);
     try {
-      await client.POST("/api/sandbox/{id}/stop", {
+      await client.POST("/api/v1/sandbox/{id}/stop", {
         params: { path: { id: getSandboxId() } },
       });
       console.log(`[TEST] ✓ Sandbox stopped`);
@@ -100,7 +100,7 @@ async function ensureSandbox(): Promise<boolean> {
   // Try to create a sandbox for standalone test execution
   console.log("[TEST] No sandbox available, creating one for standalone test...");
   try {
-    const { data, error } = await client.POST("/api/sandbox", {
+    const { data, error } = await client.POST("/api/v1/sandbox", {
       body: {
         image: "sandockai/sandock-code:latest",
         memoryLimitMb: 512,
@@ -117,7 +117,7 @@ async function ensureSandbox(): Promise<boolean> {
     console.log("[TEST] ✓ Created sandbox for standalone test:", testSandboxId);
 
     // Start the sandbox
-    const startResult = await client.POST("/api/sandbox/{id}/start", {
+    const startResult = await client.POST("/api/v1/sandbox/{id}/start", {
       params: { path: { id: getSandboxId() } },
     });
 
@@ -192,7 +192,7 @@ describe("Sandock API Integration Tests", () => {
       async () => {
         if (skipIfNoServer("get server meta information")) return;
 
-        const { data, error } = await client.GET("/api/meta");
+        const { data, error } = await client.GET("/api/v1/meta");
 
         expect(error).toBeUndefined();
         expect(data).toBeDefined();
@@ -212,7 +212,7 @@ describe("Sandock API Integration Tests", () => {
         if (skipIfNoServer("create a new sandbox")) return;
 
         console.log("[TEST] Creating sandbox...");
-        const { data, error } = await client.POST("/api/sandbox", {
+        const { data, error } = await client.POST("/api/v1/sandbox", {
           body: {
             image: "sandockai/sandock-code:latest",
             memoryLimitMb: 512,
@@ -238,12 +238,60 @@ describe("Sandock API Integration Tests", () => {
     );
 
     it(
+      "should create a sandbox with custom title",
+      async () => {
+        if (skipIfNoServer("create a sandbox with custom title")) return;
+
+        const customTitle = `Test Sandbox ${Date.now()}`;
+        console.log("[TEST] Creating sandbox with custom title:", customTitle);
+
+        const { data, error } = await client.POST("/api/v1/sandbox", {
+          body: {
+            title: customTitle,
+            image: "sandockai/sandock-code:latest",
+            memoryLimitMb: 512,
+            cpuShares: 512,
+          },
+        });
+
+        if (error) {
+          console.log("[TEST] ✗ Create error:", JSON.stringify(error, null, 2));
+        }
+
+        expect(data).toBeDefined();
+        expect(data?.success).toBe(true);
+        expect(data?.data.id).toBeDefined();
+
+        // Verify the title was set in the create response
+        if (data?.data.title) {
+          expect(data.data.title).toBe(customTitle);
+          console.log("[TEST] ✓ Created sandbox with custom title:", customTitle);
+        } else {
+          console.warn("[TEST] ⚠ Title not returned in create response");
+        }
+
+        // Cleanup: delete the test sandbox
+        if (data?.data.id) {
+          try {
+            await client.DELETE("/api/v1/sandbox/{id}", {
+              params: { path: { id: data.data.id } },
+            });
+            console.log("[TEST] ✓ Cleaned up test sandbox");
+          } catch (err) {
+            console.warn("[TEST] ✗ Cleanup failed:", err);
+          }
+        }
+      },
+      LONG_TEST_TIMEOUT,
+    );
+
+    it(
       "should list sandboxes",
       async () => {
         if (skipIfNoServer("list sandboxes")) return;
 
         // Note: spaceId is no longer passed - it's derived from API key
-        const { data, error } = await client.GET("/api/sandbox");
+        const { data, error } = await client.GET("/api/v1/sandbox");
 
         if (error) {
           console.log("[TEST] ✗ List error:", JSON.stringify(error, null, 2));
@@ -263,7 +311,7 @@ describe("Sandock API Integration Tests", () => {
         if (await skipIfNoSandbox("start a sandbox")) return;
 
         console.log("[TEST] Starting sandbox:", testSandboxId);
-        const { data, error } = await client.POST("/api/sandbox/{id}/start", {
+        const { data, error } = await client.POST("/api/v1/sandbox/{id}/start", {
           params: {
             path: {
               id: getSandboxId(),
@@ -292,7 +340,7 @@ describe("Sandock API Integration Tests", () => {
         if (await skipIfNoSandbox("run JavaScript code")) return;
 
         console.log("[TEST] Running JavaScript code...");
-        const { data, error } = await client.POST("/api/sandbox/{id}/code", {
+        const { data, error } = await client.POST("/api/v1/sandbox/{id}/code", {
           params: {
             path: {
               id: getSandboxId(),
@@ -320,7 +368,7 @@ describe("Sandock API Integration Tests", () => {
         if (await skipIfNoSandbox("run TypeScript code")) return;
 
         console.log("[TEST] Running TypeScript code...");
-        const { data, error } = await client.POST("/api/sandbox/{id}/code", {
+        const { data, error } = await client.POST("/api/v1/sandbox/{id}/code", {
           params: {
             path: {
               id: getSandboxId(),
@@ -355,7 +403,7 @@ console.log("Sum:", sum);
         if (await skipIfNoSandbox("run Python code")) return;
 
         console.log("[TEST] Running Python code...");
-        const { data, error } = await client.POST("/api/sandbox/{id}/code", {
+        const { data, error } = await client.POST("/api/v1/sandbox/{id}/code", {
           params: {
             path: {
               id: getSandboxId(),
@@ -389,7 +437,7 @@ print(f"Sum: {total}")
         if (await skipIfNoSandbox("handle code with errors")) return;
 
         console.log("[TEST] Running code with intentional error...");
-        const { data, error } = await client.POST("/api/sandbox/{id}/code", {
+        const { data, error } = await client.POST("/api/v1/sandbox/{id}/code", {
           params: {
             path: {
               id: getSandboxId(),
@@ -417,7 +465,7 @@ print(f"Sum: {total}")
         if (await skipIfNoSandbox("handle code timeout")) return;
 
         console.log("[TEST] Running code with timeout...");
-        const { data, error } = await client.POST("/api/sandbox/{id}/code", {
+        const { data, error } = await client.POST("/api/v1/sandbox/{id}/code", {
           params: {
             path: {
               id: getSandboxId(),
@@ -451,7 +499,7 @@ print(f"Sum: {total}")
         if (await skipIfNoSandbox("execute shell command")) return;
 
         console.log("[TEST] Executing shell command...");
-        const { data, error } = await client.POST("/api/sandbox/{id}/shell", {
+        const { data, error } = await client.POST("/api/v1/sandbox/{id}/shell", {
           params: {
             path: {
               id: getSandboxId(),
@@ -478,7 +526,7 @@ print(f"Sum: {total}")
         if (await skipIfNoSandbox("execute shell command with array")) return;
 
         console.log("[TEST] Executing shell command array...");
-        const { data, error } = await client.POST("/api/sandbox/{id}/shell", {
+        const { data, error } = await client.POST("/api/v1/sandbox/{id}/shell", {
           params: {
             path: {
               id: getSandboxId(),
@@ -506,7 +554,7 @@ print(f"Sum: {total}")
         if (await skipIfNoSandbox("write and read file")) return;
 
         console.log("[TEST] Writing file...");
-        const writeResult = await client.POST("/api/sandbox/{id}/fs/write", {
+        const writeResult = await client.POST("/api/v1/sandbox/{id}/fs/write", {
           params: {
             path: {
               id: getSandboxId(),
@@ -523,7 +571,7 @@ print(f"Sum: {total}")
         expect(writeResult.data?.success).toBe(true);
 
         console.log("[TEST] Reading file...");
-        const readResult = await client.GET("/api/sandbox/{id}/fs/read", {
+        const readResult = await client.GET("/api/v1/sandbox/{id}/fs/read", {
           params: {
             path: {
               id: getSandboxId(),
@@ -549,7 +597,7 @@ print(f"Sum: {total}")
 
         console.log("[TEST] Writing nested file...");
         const nestedPath = "deep/nested/path/file.txt";
-        const { data, error } = await client.POST("/api/sandbox/{id}/fs/write", {
+        const { data, error } = await client.POST("/api/v1/sandbox/{id}/fs/write", {
           params: {
             path: {
               id: getSandboxId(),
@@ -565,7 +613,7 @@ print(f"Sum: {total}")
         expect(error).toBeUndefined();
         expect(data?.success).toBe(true);
 
-        const readResult = await client.GET("/api/sandbox/{id}/fs/read", {
+        const readResult = await client.GET("/api/v1/sandbox/{id}/fs/read", {
           params: {
             path: {
               id: getSandboxId(),
@@ -588,7 +636,7 @@ print(f"Sum: {total}")
 
         console.log("[TEST] Writing executable script...");
         const script = '#!/bin/sh\necho "executable test"';
-        const { data, error } = await client.POST("/api/sandbox/{id}/fs/write", {
+        const { data, error } = await client.POST("/api/v1/sandbox/{id}/fs/write", {
           params: {
             path: {
               id: getSandboxId(),
@@ -606,7 +654,7 @@ print(f"Sum: {total}")
         expect(data?.success).toBe(true);
 
         console.log("[TEST] Running executable script...");
-        const execResult = await client.POST("/api/sandbox/{id}/shell", {
+        const execResult = await client.POST("/api/v1/sandbox/{id}/shell", {
           params: {
             path: {
               id: getSandboxId(),
@@ -630,17 +678,17 @@ print(f"Sum: {total}")
         if (await skipIfNoSandbox("list files in directory")) return;
 
         console.log("[TEST] Creating multiple files...");
-        await client.POST("/api/sandbox/{id}/fs/write", {
+        await client.POST("/api/v1/sandbox/{id}/fs/write", {
           params: { path: { id: getSandboxId() } },
           body: { path: "file1.txt", content: "content1" },
         });
-        await client.POST("/api/sandbox/{id}/fs/write", {
+        await client.POST("/api/v1/sandbox/{id}/fs/write", {
           params: { path: { id: getSandboxId() } },
           body: { path: "file2.txt", content: "content2" },
         });
 
         console.log("[TEST] Listing directory...");
-        const { data, error } = await client.GET("/api/sandbox/{id}/fs/list", {
+        const { data, error } = await client.GET("/api/v1/sandbox/{id}/fs/list", {
           params: {
             path: {
               id: getSandboxId(),
@@ -666,13 +714,13 @@ print(f"Sum: {total}")
         if (await skipIfNoSandbox("remove file")) return;
 
         console.log("[TEST] Creating file to delete...");
-        await client.POST("/api/sandbox/{id}/fs/write", {
+        await client.POST("/api/v1/sandbox/{id}/fs/write", {
           params: { path: { id: getSandboxId() } },
           body: { path: "to-delete.txt", content: "delete me" },
         });
 
         console.log("[TEST] Deleting file...");
-        const { data, error } = await client.DELETE("/api/sandbox/{id}/fs", {
+        const { data, error } = await client.DELETE("/api/v1/sandbox/{id}/fs", {
           params: {
             path: {
               id: getSandboxId(),
@@ -688,7 +736,7 @@ print(f"Sum: {total}")
         expect(data?.success).toBe(true);
 
         // Verify file is gone
-        const checkResult = await client.POST("/api/sandbox/{id}/shell", {
+        const checkResult = await client.POST("/api/v1/sandbox/{id}/shell", {
           params: { path: { id: getSandboxId() } },
           body: { cmd: "test -f to-delete.txt && echo exists || echo gone" },
         });
@@ -704,17 +752,17 @@ print(f"Sum: {total}")
         if (await skipIfNoSandbox("remove directory recursively")) return;
 
         console.log("[TEST] Creating nested directory structure...");
-        await client.POST("/api/sandbox/{id}/fs/write", {
+        await client.POST("/api/v1/sandbox/{id}/fs/write", {
           params: { path: { id: getSandboxId() } },
           body: { path: "testdir/sub1/file1.txt", content: "file1" },
         });
-        await client.POST("/api/sandbox/{id}/fs/write", {
+        await client.POST("/api/v1/sandbox/{id}/fs/write", {
           params: { path: { id: getSandboxId() } },
           body: { path: "testdir/sub2/file2.txt", content: "file2" },
         });
 
         console.log("[TEST] Deleting directory...");
-        const { data, error } = await client.DELETE("/api/sandbox/{id}/fs", {
+        const { data, error } = await client.DELETE("/api/v1/sandbox/{id}/fs", {
           params: {
             path: {
               id: getSandboxId(),
@@ -730,7 +778,7 @@ print(f"Sum: {total}")
         expect(data?.success).toBe(true);
 
         // Verify directory is gone
-        const checkResult = await client.POST("/api/sandbox/{id}/shell", {
+        const checkResult = await client.POST("/api/v1/sandbox/{id}/shell", {
           params: { path: { id: getSandboxId() } },
           body: { cmd: "test -d testdir && echo exists || echo gone" },
         });
@@ -748,7 +796,7 @@ print(f"Sum: {total}")
         if (await skipIfNoSandbox("run Python with math operations")) return;
 
         console.log("[TEST] Running Python math operations...");
-        const { data, error } = await client.POST("/api/sandbox/{id}/code", {
+        const { data, error } = await client.POST("/api/v1/sandbox/{id}/code", {
           params: {
             path: {
               id: getSandboxId(),
@@ -786,7 +834,7 @@ print(f"squares: {squares}")
         if (await skipIfNoSandbox("run TypeScript with async/await")) return;
 
         console.log("[TEST] Running TypeScript async operations...");
-        const { data, error } = await client.POST("/api/sandbox/{id}/code", {
+        const { data, error } = await client.POST("/api/v1/sandbox/{id}/code", {
           params: {
             path: {
               id: getSandboxId(),
@@ -838,7 +886,7 @@ main().catch(console.error);
         if (await skipIfNoSandbox("stop a sandbox")) return;
 
         console.log("[TEST] Stopping sandbox:", testSandboxId);
-        const { data, error } = await client.POST("/api/sandbox/{id}/stop", {
+        const { data, error } = await client.POST("/api/v1/sandbox/{id}/stop", {
           params: {
             path: {
               id: getSandboxId(),

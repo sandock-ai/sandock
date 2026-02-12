@@ -33,6 +33,8 @@ export interface SandockClientOptions {
 export interface SandboxCreateOptions {
   /** Docker image to use */
   image: string;
+  /** Custom name for the sandbox (optional, auto-generated if not provided) */
+  title?: string;
   /** Optional command to run */
   command?: string[];
   /** Environment variables */
@@ -45,6 +47,12 @@ export interface SandboxCreateOptions {
   spaceId?: string;
   /** Volume mounts for persistent storage */
   volumes?: VolumeMountInput[];
+  /**
+   * Maximum runtime for sandbox in seconds.
+   * Default: 1800 (30 minutes), Max: 86400 (24 hours).
+   * When exceeded, sandbox status will be changed to STOPPED.
+   */
+  activeDeadlineSeconds?: number;
 }
 
 /** Volume mount configuration */
@@ -271,8 +279,13 @@ export interface SandockClient extends OpenAPIClient {
  *   headers: { 'Authorization': 'Bearer token' }
  * })
  *
+ * // Create sandbox with custom title
+ * const sandbox = await client.sandbox.create({
+ *   image: 'node:20-alpine',
+ *   title: 'My API Server'
+ * })
+ *
  * // Create and run code (batch mode - output after completion)
- * const sandbox = await client.sandbox.create({ image: 'node:20-alpine' })
  * const result = await client.sandbox.runCode(sandbox.data.id, {
  *   language: 'javascript',
  *   code: 'console.log("hello")'
@@ -329,12 +342,15 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
       };
 
       // Optional fields - only include if provided
+      if (createOptions.title) requestBody.title = createOptions.title;
       if (createOptions.spaceId) requestBody.spaceId = createOptions.spaceId;
       if (createOptions.command) requestBody.command = createOptions.command;
       if (createOptions.env) requestBody.env = createOptions.env;
       if (createOptions.cpu) requestBody.cpuShares = createOptions.cpu;
       if (createOptions.memory) requestBody.memoryLimitMb = createOptions.memory;
       if (createOptions.volumes) requestBody.volumes = createOptions.volumes;
+      if (createOptions.activeDeadlineSeconds)
+        requestBody.activeDeadlineSeconds = createOptions.activeDeadlineSeconds;
 
       const { data, error } = await rawClient.POST("/api/v1/sandbox", {
         body: requestBody as components["schemas"]["CreateSandboxRequest"],
