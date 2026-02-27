@@ -1,6 +1,7 @@
 /**
  * Sandbox exec command - Execute a command in a sandbox
  * Supports streaming output with --stream flag
+ * Supports interactive PTY mode with -i -t flags
  */
 
 import { Args, Command, Flags } from "@oclif/core";
@@ -15,6 +16,7 @@ export default class SandboxExec extends Command {
     '<%= config.bin %> <%= command.id %> sb_12345 "node -v"',
     '<%= config.bin %> <%= command.id %> sb_12345 "python script.py" --timeout 60',
     '<%= config.bin %> <%= command.id %> sb_12345 "echo hello; sleep 1; echo world" --stream',
+    '<%= config.bin %> <%= command.id %> -it sb_12345 "bash"',
   ];
 
   static override args = {
@@ -31,7 +33,7 @@ export default class SandboxExec extends Command {
   static override flags = {
     timeout: Flags.integer({
       char: "t",
-      description: "Execution timeout in seconds",
+      description: "Execution timeout in seconds (ignored in interactive mode)",
       default: 30,
     }),
     stream: Flags.boolean({
@@ -39,11 +41,67 @@ export default class SandboxExec extends Command {
       description: "Stream output in real-time",
       default: false,
     }),
+    interactive: Flags.boolean({
+      char: "i",
+      description: "Interactive mode — attach stdin and use PTY",
+      default: false,
+    }),
   };
 
   public async run(): Promise<void> {
     const { args, flags } = await this.parse(SandboxExec);
     const client = getClient();
+
+    // Interactive PTY mode when -i flag is set
+    if (flags.interactive) {
+      const cols = process.stdout.columns || 80;
+      const rows = process.stdout.rows || 24;
+
+      this.log(chalk.cyan(`Connecting to sandbox ${args.id} (interactive)...`));
+
+      try {
+        const pty = await client.pty.create(args.id, {
+          cols,
+          rows,
+          cmd: args.command,
+          onData: (data: Uint8Array) => {
+            process.stdout.write(Buffer.from(data));
+          },
+          onExit: (exitCode: number | null) => {
+            if (process.stdin.isTTY) {
+              process.stdin.setRawMode(false);
+            }
+            process.stdin.pause();
+            this.log(chalk.gray(`\nSession ended (exit code: ${exitCode})`));
+            process.exit(exitCode ?? 0);
+          },
+          onError: (err: Error) => {
+            this.log(chalk.red(`Error: ${err.message}`));
+          },
+        });
+
+        this.log(chalk.green(`Connected! (session: ${pty.sessionId})`));
+
+        if (process.stdin.isTTY) {
+          process.stdin.setRawMode(true);
+        }
+        process.stdin.resume();
+        process.stdin.on("data", (data) => {
+          pty.sendInput(data);
+        });
+
+        process.stdout.on("resize", () => {
+          pty.resize(process.stdout.columns, process.stdout.rows);
+        });
+
+        await pty.wait();
+      } catch (error) {
+        this.error(
+          chalk.red(`Failed to connect: ${error instanceof Error ? error.message : String(error)}`),
+        );
+      }
+      return;
+    }
 
     if (flags.stream) {
       // Stream mode - output in real-time (with callbacks)

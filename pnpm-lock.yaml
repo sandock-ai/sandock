@@ -26,8 +26,11 @@ importers:
         specifier: ^8.2.0
         version: 8.2.0
       sandock:
-        specifier: 2.2.3
-        version: 2.2.3
+        specifier: 2.2.5
+        version: link:../sandock-js
+      ws:
+        specifier: ^8.18.0
+        version: 8.19.0
     devDependencies:
       '@oclif/prettier-config':
         specifier: ^0.2.1
@@ -50,6 +53,9 @@ importers:
       openapi-fetch:
         specifier: 0.15.0
         version: 0.15.0
+      ws:
+        specifier: ^8.18.0
+        version: 8.19.0
     devDependencies:
       '@types/node':
         specifier: ^20.14.12
@@ -1290,9 +1296,6 @@ packages:
   sandock@0.2.5:
     resolution: {integrity: sha512-emT9g9pcPDZufsEGTvUlSXlK/Busd/bhZDJwJts/8YQk1nFVDZNmxOqm3wbwRegPobiTgOeOInkQRiPAImRsLQ==}
 
-  sandock@2.2.3:
-    resolution: {integrity: sha512-nNxXmh8e8YmGmTLEiR1CDoiWarqQvqRTy1PXOu+4ic/qji1LK/kky6wDfkCu7mRypVgE6QEvtPqdIVTSvtOBRw==}
-
   semver@7.7.3:
     resolution: {integrity: sha512-SdsKMrI9TdgjdweUSR9MweHA4EJ8YxHn8DFaDisvhVlUOe4BF1tLD7GAj0lIqWVl+dPb/rExr0Btby5loQm20Q==}
     engines: {node: '>=10'}
@@ -1597,6 +1600,18 @@ packages:
 
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
+
+  ws@8.19.0:
+    resolution: {integrity: sha512-blAT2mjOEIi0ZzruJfIhb3nps74PRWTCz1IjglWEEpQl5XS/UNama6u2/rjFkDDouqr4L67ry+1aGIALViWjDg==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
 
   xsschema@0.4.0-beta.5:
     resolution: {integrity: sha512-73pYwf1hMy++7SnOkghJdgdPaGi+Y5I0SaO6rIlxb1ouV6tEyDbEcXP82kyr32KQVTlUbFj6qewi9eUVEiXm+g==}
@@ -2815,10 +2830,6 @@ snapshots:
     dependencies:
       openapi-fetch: 0.15.0
 
-  sandock@2.2.3:
-    dependencies:
-      openapi-fetch: 0.15.0
-
   semver@7.7.3: {}
 
   send@1.2.0:
@@ -3113,6 +3124,8 @@ snapshots:
       strip-ansi: 7.1.2
 
   wrappy@1.0.2: {}
+
+  ws@8.19.0: {}
 
   xsschema@0.4.0-beta.5(zod-to-json-schema@3.24.6(zod@4.1.12))(zod@3.25.76):
     optionalDependencies:

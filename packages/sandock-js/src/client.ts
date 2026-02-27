@@ -4,6 +4,7 @@
  */
 
 import createClient from "openapi-fetch";
+import { createPtyClient, type PtyCreateOptions, type PtyHandle } from "./pty";
 import type { components, paths } from "./schema";
 
 // Base openapi-fetch client type
@@ -254,14 +255,30 @@ export interface SandockClient extends OpenAPIClient {
     create(
       name: string,
       metadata?: Record<string, unknown>,
+      spaceId?: string,
     ): Promise<{ success: true; data: VolumeInfo }>;
     /** Get volume by ID */
     get(volumeId: string): Promise<{ success: true; data: VolumeInfo }>;
     /** Get volume by name, optionally creating if not exists */
-    getByName(name: string, create?: boolean): Promise<{ success: true; data: VolumeInfo }>;
+    getByName(
+      name: string,
+      create?: boolean,
+      spaceId?: string,
+    ): Promise<{ success: true; data: VolumeInfo }>;
     /** Delete a volume */
     delete(volumeId: string): Promise<{ success: true; data: { id: string; deleted: boolean } }>;
   };
+  /** Interactive PTY (shell) operations via WebSocket */
+  pty: {
+    /** Create and connect to an interactive PTY session */
+    create(sandboxId: string, opts: PtyCreateOptions): Promise<PtyHandle>;
+  };
+  /** Execute a command interactively in a sandbox (shortcut for pty.create with the given command) */
+  exec(
+    sandboxId: string,
+    command: string,
+    opts?: { cols?: number; rows?: number },
+  ): Promise<PtyHandle>;
   /** Get API meta information */
   getMeta(): Promise<{ success: true; data: { version: string } }>;
 }
@@ -320,7 +337,6 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
   const sandbox = {
     async list(listOptions?: SandboxListOptions) {
       // Note: Schema doesn't have spaceId query param but server supports it
-      // biome-ignore lint/suspicious/noExplicitAny: Schema query param typing needs update
       const requestParams: any = listOptions?.spaceId
         ? { params: { query: { spaceId: listOptions.spaceId } } }
         : undefined;
@@ -593,14 +609,18 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
       return { success: true as const, data: result.data };
     },
 
-    async create(name: string, metadata?: Record<string, unknown>) {
+    async create(name: string, metadata?: Record<string, unknown>, spaceId?: string) {
+      const body: Record<string, unknown> = { name };
+      if (metadata !== undefined) body.metadata = metadata;
+      if (spaceId !== undefined) body.spaceId = spaceId;
+
       const response = await fetch(`${baseUrl}/api/v1/volume`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...headers,
         },
-        body: JSON.stringify({ name, metadata }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -628,10 +648,13 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
       return { success: true as const, data: result.data };
     },
 
-    async getByName(name: string, create = false) {
+    async getByName(name: string, create = false, spaceId?: string) {
       const url = new URL(`${baseUrl}/api/v1/volume/name/${encodeURIComponent(name)}`);
       if (create) {
         url.searchParams.set("create", "true");
+      }
+      if (spaceId !== undefined) {
+        url.searchParams.set("spaceId", spaceId);
       }
 
       const response = await fetch(url.toString(), {
@@ -678,11 +701,31 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
     return { success: true as const, data: data.data };
   }
 
+  // PTY (interactive terminal) operations
+  const pty = createPtyClient(baseUrl, headers);
+
+  // Convenience exec: open interactive PTY with a given command
+  const exec = async (
+    sandboxId: string,
+    command: string,
+    opts?: { cols?: number; rows?: number },
+  ): Promise<PtyHandle> => {
+    return pty.create(sandboxId, {
+      cols: opts?.cols ?? 80,
+      rows: opts?.rows ?? 24,
+      cmd: command,
+      onData: () => {},
+      onExit: () => {},
+    });
+  };
+
   // Merge raw client with high-level API
   return Object.assign(rawClient, {
     sandbox,
     fs,
     volume,
+    pty,
+    exec,
     getMeta,
   }) as SandockClient;
 }

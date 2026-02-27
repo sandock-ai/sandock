@@ -50,6 +50,8 @@ export type {
 } from "./client";
 // Main client export
 export { createSandockClient, DEFAULT_TIMEOUT_MS } from "./client";
+// PTY types
+export type { PtyCreateOptions, PtyHandle } from "./pty";
 
 // Re-export types from schema for convenience
 export type { components, paths } from "./schema";

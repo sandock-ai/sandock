@@ -1,6 +1,6 @@
 {
   "name": "sandock",
-  "version": "2.2.4",
+  "version": "2.2.5",
   "description": "Lightweight TypeScript SDK for the Sandock - Sandbox in Docker for AI Agents.",
   "type": "module",
   "license": "MIT",
@@ -34,6 +34,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./pty": {
+      "types": "./dist/pty.d.ts",
+      "import": "./dist/pty.js"
+    },
     "./schema": {
       "types": "./dist/schema.d.ts",
       "import": "./dist/schema.js"
@@ -46,7 +50,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/fix-esm-imports.cjs",
     "clean": "rm -rf dist",
     "test": "vitest",
     "prepublishOnly": "pnpm run build",
@@ -54,7 +58,8 @@
     "generate:prod": "openapi-typescript https://sandock.com/api/openapi.json -o src/schema.ts"
   },
   "dependencies": {
-    "openapi-fetch": "0.15.0"
+    "openapi-fetch": "0.15.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.12",
