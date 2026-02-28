@@ -60,6 +60,9 @@ importers:
       '@types/node':
         specifier: ^20.14.12
         version: 20.19.24
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       openapi-typescript:
         specifier: ^7.6.0
         version: 7.10.1(typescript@5.9.3)
@@ -568,6 +571,9 @@ packages:
 
   '@types/through@0.0.33':
     resolution: {integrity: sha512-HsJ+z3QuETzP3cswwtzt2vEIiHBk/dCcHGhbmG5X3ecnwFD/lPrMpliGXxSCg03L9AhrdwA4Oz/qfspkDW+xGQ==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@vitest/expect@3.2.4':
     resolution: {integrity: sha512-Io0yyORnB6sikFlt8QW5K7slY4OjqNX9jmJQ02QDda8lyM6B5oNgVWoSoKPac8/kgnCUzuHQKrSLtu/uOqqrig==}
@@ -2059,6 +2065,10 @@ snapshots:
     dependencies:
       '@types/node': 20.19.24
 
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 20.19.24
+
   '@vitest/expect@3.2.4':
     dependencies:
       '@types/chai': 5.2.3
@@ -2430,7 +2440,7 @@ snapshots:
       strict-event-emitter-types: 2.0.0
       undici: 7.16.0
       uri-templates: 0.2.0
-      xsschema: 0.4.0-beta.5(zod-to-json-schema@3.24.6(zod@4.1.12))(zod@3.25.76)
+      xsschema: 0.4.0-beta.5(zod-to-json-schema@3.24.6(zod@3.25.76))(zod@3.25.76)
       yargs: 18.0.0
       zod: 3.25.76
       zod-to-json-schema: 3.24.6(zod@3.25.76)
@@ -3127,7 +3137,7 @@ snapshots:
 
   ws@8.19.0: {}
 
-  xsschema@0.4.0-beta.5(zod-to-json-schema@3.24.6(zod@4.1.12))(zod@3.25.76):
+  xsschema@0.4.0-beta.5(zod-to-json-schema@3.24.6(zod@3.25.76))(zod@3.25.76):
     optionalDependencies:
       zod: 3.25.76
       zod-to-json-schema: 3.24.6(zod@3.25.76)
