@@ -93,18 +93,19 @@ jobs:
           echo "SDK_VERSION=$SDK_VERSION" >> $GITHUB_ENV
 
       - name: Update CLI dependency to latest SDK version
-        working-directory: packages/sandock-cli
         run: |
           echo "Updating sandock dependency to ^$SDK_VERSION"
+          cd packages/sandock-cli
           npm pkg set dependencies.sandock="^$SDK_VERSION"
           echo "✅ Updated package.json"
           cat package.json | grep -A 3 "dependencies"
-
-      - name: Install dependencies (from npm)
-        working-directory: packages/sandock-cli
-        run: |
-          echo "Installing dependencies from npm (sandock will come from npm registry)..."
+          cd ../..
           pnpm install --no-frozen-lockfile
+          echo "✅ Updated lockfile"
+
+      - name: Build sandock-js (for CLI types)
+        working-directory: packages/sandock-js
+        run: pnpm build
 
       - name: Publish sandock-cli
         uses: ./.github/actions/publish-npm-package
