@@ -26,7 +26,7 @@ importers:
         specifier: ^8.2.0
         version: 8.2.0
       sandock:
-        specifier: 2.2.5
+        specifier: workspace:*
         version: link:../sandock-js
       ws:
         specifier: ^8.18.0

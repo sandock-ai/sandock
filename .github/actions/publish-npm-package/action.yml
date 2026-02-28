@@ -54,7 +54,7 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      run: pnpm install
+      run: pnpm install --frozen-lockfile
 
     - name: Update version if specified
       if: ${{ inputs.version-override != '' }}
