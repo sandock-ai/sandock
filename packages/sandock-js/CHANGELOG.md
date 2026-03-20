@@ -1,4 +1,33 @@
 ---
+title: 2026-03-19 Bump version to 2.3.0 - Add activeDeadlineSeconds to create sandbox
+---
+
+# Bump version to 2.3.0 - Add activeDeadlineSeconds to create sandbox
+
+Date: 2026-03-19
+Author: AI Assistant
+AI Agent: GitHub Copilot
+
+## What Changed
+- Bumped sandock-js (`sandock`) version from 2.2.5 to 2.3.0
+- Bumped sandock-cli version from 2.2.5 to 2.3.0 (keeps in sync)
+- `SandboxCreateOptions.activeDeadlineSeconds?: number` parameter added to create sandbox
+
+## Why
+Added `activeDeadlineSeconds` optional parameter to `SandboxCreateOptions` for controlling
+maximum runtime of sandboxes. Default: 1800s (30 min), Max: 86400s (24 hours). When exceeded,
+sandbox status is changed to STOPPED.
+
+## Files Affected
+- `projects/sandock/packages/sandock-js/package.json` - Version bump 2.2.5 → 2.3.0
+- `projects/sandock/packages/sandock-cli/package.json` - Version bump 2.2.5 → 2.3.0
+
+## Breaking Changes
+None - `activeDeadlineSeconds` is an optional parameter
+
+---
+
+---
 title: 2026-01-12 Fix Test Suite - Remove Obsolete replayExecutionResult Test
 ---
 

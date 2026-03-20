@@ -47,6 +47,8 @@ export type {
   SandockClientOptions,
   ShellOptions,
   StreamCallbacks,
+  VolumeInfo,
+  VolumeMountInput,
 } from "./client";
 // Main client export
 export { createSandockClient, DEFAULT_TIMEOUT_MS } from "./client";

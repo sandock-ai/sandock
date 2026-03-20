@@ -772,6 +772,8 @@ export interface components {
         /** Optional subpath within the volume */
         subpath?: string;
       }[];
+      /** @description Auto-delete interval in minutes for stopped sandboxes. -1: disable auto-delete; 0: delete immediately on stop; default: 1440 (1 day). */
+      autoDeleteInterval?: number;
     };
     SandboxExecutionResult: {
       stdout: string;

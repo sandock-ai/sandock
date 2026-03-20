@@ -54,6 +54,13 @@ export interface SandboxCreateOptions {
    * When exceeded, sandbox status will be changed to STOPPED.
    */
   activeDeadlineSeconds?: number;
+  /**
+   * Auto-delete interval in minutes for stopped sandboxes.
+   * -1: disable auto-delete; 0: delete immediately on stop;
+   * positive number: minutes until auto-delete.
+   * Default: 1440 (1 day).
+   */
+  autoDeleteInterval?: number;
 }
 
 /** Volume mount configuration */
@@ -72,6 +79,7 @@ export interface VolumeInfo {
   spaceId: string | null;
   name: string;
   status: "pending_create" | "ready" | "error" | "deleting" | "deleted";
+  storageType: "ebs" | "s3";
   sizeBytes: number;
   metadata: Record<string, unknown> | null;
   createdAt: string;
@@ -254,8 +262,7 @@ export interface SandockClient extends OpenAPIClient {
     /** Create a new volume */
     create(
       name: string,
-      metadata?: Record<string, unknown>,
-      spaceId?: string,
+      options?: { storageType?: "ebs" | "s3"; metadata?: Record<string, unknown>; spaceId?: string },
     ): Promise<{ success: true; data: VolumeInfo }>;
     /** Get volume by ID */
     get(volumeId: string): Promise<{ success: true; data: VolumeInfo }>;
@@ -367,6 +374,8 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
       if (createOptions.volumes) requestBody.volumes = createOptions.volumes;
       if (createOptions.activeDeadlineSeconds)
         requestBody.activeDeadlineSeconds = createOptions.activeDeadlineSeconds;
+      if (createOptions.autoDeleteInterval !== undefined)
+        requestBody.autoDeleteInterval = createOptions.autoDeleteInterval;
 
       const { data, error } = await rawClient.POST("/api/v1/sandbox", {
         body: requestBody as components["schemas"]["CreateSandboxRequest"],
@@ -609,10 +618,11 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
       return { success: true as const, data: result.data };
     },
 
-    async create(name: string, metadata?: Record<string, unknown>, spaceId?: string) {
+    async create(name: string, options?: { storageType?: "ebs" | "s3"; metadata?: Record<string, unknown>; spaceId?: string }) {
       const body: Record<string, unknown> = { name };
-      if (metadata !== undefined) body.metadata = metadata;
-      if (spaceId !== undefined) body.spaceId = spaceId;
+      if (options?.storageType !== undefined) body.storageType = options.storageType;
+      if (options?.metadata !== undefined) body.metadata = options.metadata;
+      if (options?.spaceId !== undefined) body.spaceId = options.spaceId;
 
       const response = await fetch(`${baseUrl}/api/v1/volume`, {
         method: "POST",
