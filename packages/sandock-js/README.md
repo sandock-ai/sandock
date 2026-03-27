@@ -219,6 +219,44 @@ await client.sandbox.shell('sdbXXX', { cmd: 'echo "start"; sleep 2; echo "done"'
 })
 ```
 
+### Coding Agent Operations
+
+Run AI coding agents (e.g. Claude, Gemini) inside a sandbox. The request is proxied to the `sandagent-daemon` running at port 3080 inside the container, which orchestrates the agent loop and streams results back as NDJSON.
+
+#### `client.coding.run(sandboxId, options, callbacks?)`
+
+Start a coding agent run. Returns a `ReadableStream` of parsed NDJSON events.
+
+```typescript
+const { stream } = await client.coding.run('sdbXXX', {
+  userInput: 'Build a REST API with Express',  // Required: instruction for the agent
+  runner: 'claude',                             // Optional: runner backend ('claude' | 'gemini' | etc.)
+  model: 'claude-sonnet-4-20250514',              // Optional: model override
+  cwd: '/workspace',                            // Optional: working directory
+  systemPrompt: 'You are a senior engineer',    // Optional: custom system prompt
+  maxTurns: 10,                                 // Optional: max agent turns
+  resume: 'session_xxx',                        // Optional: resume a previous session
+})
+
+// Consume the NDJSON stream
+const reader = stream.getReader()
+while (true) {
+  const { done, value } = await reader.read()
+  if (done) break
+  console.log(value) // Each value is a parsed JSON object
+}
+```
+
+**With callbacks** (events delivered in real-time):
+
+```typescript
+await client.coding.run('sdbXXX', { userInput: 'Fix the failing tests' }, {
+  onEvent: (event) => console.log(event),       // Parsed NDJSON object
+  onRawChunk: (chunk) => {},                     // Raw text chunk (before parsing)
+  onError: (err) => console.error(err),          // Parse errors
+})
+```
+
 ### File System Operations
 
 #### `client.fs.write(sandboxId, path, content, options?)`
@@ -297,7 +335,7 @@ const volume = await client.volume.get('vol_xxx')
 // Returns: { success: true, data: { id, name, status, sizeBytes, ... } }
 ```
 
-#### `client.volume.getByName(name, create?, spaceId?)`
+#### `client.volume.getByName(name, create?, spaceId?, storageType?)`
 
 Get volume by name, optionally creating if it doesn't exist.
 
@@ -313,6 +351,9 @@ const volume = await client.volume.getByName('my-data', true, 'space_xxx')
 
 // Get volume from specific space (without create)
 const volume = await client.volume.getByName('my-data', false, 'space_xxx')
+
+// Get or create EBS volume (block storage) in specific space
+const volume = await client.volume.getByName('my-data', true, 'space_xxx', 'ebs')
 ```
 
 #### `client.volume.delete(volumeId)`
@@ -427,6 +468,8 @@ import type {
   MetaResponse,
   User,
   StreamCallbacks,
+  CodingRunOptions,
+  CodingStreamCallbacks,
   VolumeInfo,
   VolumeMountInput
 } from 'sandock'

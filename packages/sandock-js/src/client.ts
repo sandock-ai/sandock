@@ -106,6 +106,31 @@ export interface ShellOptions {
   env?: Record<string, string>;
 }
 
+export interface CodingRunOptions {
+  /** User instruction for the coding agent */
+  userInput: string;
+  /** Runner to use (e.g. "claude", "pi", "gemini") */
+  runner?: string;
+  /** Model override */
+  model?: string;
+  /** Working directory inside the sandbox */
+  cwd?: string;
+  /** Custom system prompt */
+  systemPrompt?: string;
+  /** Maximum agent turns */
+  maxTurns?: number;
+  /** Resume a previous session */
+  resume?: string;
+}
+
+export interface CodingStreamCallbacks {
+  /** Called for each NDJSON line parsed as an object */
+  onEvent?: (event: Record<string, unknown>) => void;
+  /** Called for raw text chunks before parsing */
+  onRawChunk?: (chunk: string) => void;
+  onError?: (error: unknown) => void;
+}
+
 export interface ExecutionResult {
   stdout: string;
   stderr: string;
@@ -234,6 +259,19 @@ export interface SandockClient extends OpenAPIClient {
       callbacks?: StreamCallbacks,
     ): Promise<{ success: true; data: ExecutionResult }>;
   };
+  /** Coding agent operations (proxied to sandagent-daemon) */
+  coding: {
+    /**
+     * Run a coding agent in a sandbox (NDJSON stream).
+     * Returns a ReadableStream of parsed NDJSON events.
+     * When callbacks are provided, events are also delivered via callbacks.
+     */
+    run(
+      sandboxId: string,
+      options: CodingRunOptions,
+      callbacks?: CodingStreamCallbacks,
+    ): Promise<{ success: true; stream: ReadableStream<Record<string, unknown>> }>;
+  };
   /** File system operations */
   fs: {
     /** Write file to sandbox */
@@ -262,7 +300,11 @@ export interface SandockClient extends OpenAPIClient {
     /** Create a new volume */
     create(
       name: string,
-      options?: { storageType?: "ebs" | "s3"; metadata?: Record<string, unknown>; spaceId?: string },
+      options?: {
+        storageType?: "ebs" | "s3";
+        metadata?: Record<string, unknown>;
+        spaceId?: string;
+      },
     ): Promise<{ success: true; data: VolumeInfo }>;
     /** Get volume by ID */
     get(volumeId: string): Promise<{ success: true; data: VolumeInfo }>;
@@ -271,6 +313,7 @@ export interface SandockClient extends OpenAPIClient {
       name: string,
       create?: boolean,
       spaceId?: string,
+      storageType?: "ebs" | "s3",
     ): Promise<{ success: true; data: VolumeInfo }>;
     /** Delete a volume */
     delete(volumeId: string): Promise<{ success: true; data: { id: string; deleted: boolean } }>;
@@ -539,6 +582,70 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
     },
   };
 
+  const coding = {
+    async run(sandboxId: string, options: CodingRunOptions, callbacks?: CodingStreamCallbacks) {
+      const response = await fetch(`${baseUrl}/api/v1/sandbox/${sandboxId}/coding/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify(options),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to start coding run: ${response.statusText}`);
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      const stream = new ReadableStream<Record<string, unknown>>({
+        async pull(controller) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              // flush remaining buffer
+              if (buffer.trim()) {
+                try {
+                  const event = JSON.parse(buffer.trim());
+                  callbacks?.onEvent?.(event);
+                  controller.enqueue(event);
+                } catch {
+                  /* ignore */
+                }
+              }
+              controller.close();
+              return;
+            }
+
+            const text = decoder.decode(value, { stream: true });
+            callbacks?.onRawChunk?.(text);
+            buffer += text;
+
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed) continue;
+              try {
+                const event = JSON.parse(trimmed);
+                callbacks?.onEvent?.(event);
+                controller.enqueue(event);
+              } catch {
+                callbacks?.onError?.(new Error(`Failed to parse NDJSON line: ${trimmed}`));
+              }
+            }
+          }
+        },
+        cancel() {
+          reader.cancel();
+        },
+      });
+
+      return { success: true as const, stream };
+    },
+  };
+
   const fs = {
     async write(sandboxId: string, path: string, content: string) {
       const { data, error } = await rawClient.POST("/api/v1/sandbox/{id}/fs/write", {
@@ -618,7 +725,14 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
       return { success: true as const, data: result.data };
     },
 
-    async create(name: string, options?: { storageType?: "ebs" | "s3"; metadata?: Record<string, unknown>; spaceId?: string }) {
+    async create(
+      name: string,
+      options?: {
+        storageType?: "ebs" | "s3";
+        metadata?: Record<string, unknown>;
+        spaceId?: string;
+      },
+    ) {
       const body: Record<string, unknown> = { name };
       if (options?.storageType !== undefined) body.storageType = options.storageType;
       if (options?.metadata !== undefined) body.metadata = options.metadata;
@@ -658,13 +772,16 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
       return { success: true as const, data: result.data };
     },
 
-    async getByName(name: string, create = false, spaceId?: string) {
+    async getByName(name: string, create = false, spaceId?: string, storageType?: "ebs" | "s3") {
       const url = new URL(`${baseUrl}/api/v1/volume/name/${encodeURIComponent(name)}`);
       if (create) {
         url.searchParams.set("create", "true");
       }
       if (spaceId !== undefined) {
         url.searchParams.set("spaceId", spaceId);
+      }
+      if (storageType !== undefined) {
+        url.searchParams.set("storageType", storageType);
       }
 
       const response = await fetch(url.toString(), {
@@ -732,6 +849,7 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
   // Merge raw client with high-level API
   return Object.assign(rawClient, {
     sandbox,
+    coding,
     fs,
     volume,
     pty,

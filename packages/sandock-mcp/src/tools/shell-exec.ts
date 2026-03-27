@@ -24,8 +24,8 @@ export const shellExecSchema = z.object({
     .number()
     .int()
     .positive()
-    .default(30)
-    .describe("Execution timeout in seconds (default: 30, max: 300)"),
+    .default(300) // Changed default to 300s (5m) instead of 30s
+    .describe("Execution timeout in seconds (default: 300, max: 3600)"),
   env: z
     .record(z.string(), z.string())
     .optional()
@@ -47,7 +47,7 @@ export async function shellExec(args: ShellExecArgs, context: ToolContext) {
       });
     }
 
-    const maxTimeout = Math.min(args.timeout, 300);
+    const maxTimeout = Math.min(args.timeout, 3600); // Allow up to 1 hour timeout for long running commands
 
     const { data, error } = await client.POST("/api/v1/sandbox/{id}/shell", {
       params: {
@@ -81,7 +81,7 @@ export async function shellExec(args: ShellExecArgs, context: ToolContext) {
         errorType = "EXECUTION_TIMEOUT";
         message = "Command execution timed out";
         solutions = [
-          `Increase timeout (current: ${args.timeout}s, max: 300s)`,
+          `Increase timeout (current: ${args.timeout}s, max: 3600s)`,
           "Optimize the command to run faster",
           "Break long operations into smaller steps",
         ];
