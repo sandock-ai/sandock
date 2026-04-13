@@ -253,6 +253,30 @@ Delete a sandbox
 **Args:**
 - `id` (required): Sandbox ID
 
+### `sandock sandbox preview-url <id>`
+
+Get a preview URL for a sandbox port.
+
+**Args:**
+- `id` (required): Sandbox ID
+
+**Flags:**
+- `--port, -p <number>` (required): Port number to preview
+- `--signed, -s`: Generate a signed (shareable) URL
+- `--expires <seconds>`: Signed URL expiry in seconds (default: 3600)
+
+**Examples:**
+```bash
+# Get standard preview URL
+sandock sandbox preview-url sb_12345 --port 3000
+
+# Get signed (shareable) preview URL
+sandock sandbox preview-url sb_12345 --port 3000 --signed
+
+# Signed URL with custom expiry
+sandock sandbox preview-url sb_12345 --port 3000 --signed --expires 7200
+```
+
 ## Examples
 
 ```bash
@@ -294,6 +318,12 @@ sandock sandbox info sb_abc123
 
 # Delete sandbox
 sandock sandbox delete sb_abc123
+
+# Get preview URL for port 3000
+sandock sandbox preview-url sb_abc123 --port 3000
+
+# Get signed preview URL (shareable)
+sandock sandbox preview-url sb_abc123 --port 3000 --signed
 ```
 
 ## Development

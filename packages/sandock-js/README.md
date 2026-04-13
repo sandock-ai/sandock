@@ -365,6 +365,45 @@ await client.volume.delete('vol_xxx')
 // Returns: { success: true, data: { id: 'vol_xxx', deleted: true } }
 ```
 
+### Preview URL
+
+Generate preview URLs for accessing sandbox ports via public wildcard subdomains.
+
+#### `client.sandbox.getPreviewUrl(sandboxId, options)`
+
+Get a preview URL with a standard token (passed via header/cookie).
+
+```typescript
+const preview = await client.sandbox.getPreviewUrl('sdbXXX', { port: 3000 })
+// preview.data = { url: 'https://3000-sdbXXX.sandock.ai', token: '...' }
+
+// Use token in subsequent requests via header
+fetch(preview.data.url, {
+  headers: { 'X-Sandock-Preview-Token': preview.data.token }
+})
+```
+
+#### `client.sandbox.getSignedPreviewUrl(sandboxId, options)`
+
+Get a self-authenticated preview URL (token embedded in subdomain, shareable).
+
+```typescript
+const signed = await client.sandbox.getSignedPreviewUrl('sdbXXX', {
+  port: 3000,
+  expiresIn: 3600  // Optional: seconds (default: 3600)
+})
+// signed.data = { url: 'https://3000-t1a2b3c4d5e6f7g.sandock.ai' }
+// Can be opened directly in browser or embedded in iframe
+```
+
+#### `client.sandbox.revokePreviewToken(sandboxId, token)`
+
+Revoke a signed preview token.
+
+```typescript
+await client.sandbox.revokePreviewToken('sdbXXX', 't1a2b3c4d5e6f7g')
+```
+
 ### Creating Sandbox with Volume Mounts
 
 Mount volumes to sandboxes for persistent storage:
@@ -471,7 +510,11 @@ import type {
   CodingRunOptions,
   CodingStreamCallbacks,
   VolumeInfo,
-  VolumeMountInput
+  VolumeMountInput,
+  PreviewUrlOptions,
+  PreviewUrlResult,
+  SignedPreviewUrlOptions,
+  SignedPreviewUrlResult
 } from 'sandock'
 
 // All types are auto-generated from OpenAPI schema

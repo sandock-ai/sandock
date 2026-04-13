@@ -39,6 +39,8 @@
 // Types
 export type {
   ExecutionResult,
+  PreviewUrlOptions,
+  PreviewUrlResult,
   RunCodeOptions,
   SandboxCreateOptions,
   SandboxItem,
@@ -46,6 +48,8 @@ export type {
   SandockClient,
   SandockClientOptions,
   ShellOptions,
+  SignedPreviewUrlOptions,
+  SignedPreviewUrlResult,
   StreamCallbacks,
   VolumeInfo,
   VolumeMountInput,

@@ -15,12 +15,16 @@ export interface PtyCreateOptions {
   rows?: number;
   /** Shell command (default: /bin/sh) */
   cmd?: string;
+  /** Session ID for tmux-like persistence (reconnecting with the same ID resumes the session) */
+  sessionId?: string;
   /** Called when PTY produces output */
   onData: (data: Uint8Array) => void;
   /** Called when PTY process exits */
   onExit?: (exitCode: number | null) => void;
   /** Called on connection/protocol errors */
   onError?: (error: Error) => void;
+  /** Called when the underlying WebSocket closes (for reconnection logic) */
+  onClose?: () => void;
 }
 
 /** Handle to an active PTY session */
@@ -96,6 +100,7 @@ export function createPtyClient(baseUrl: string, headers: Record<string, string>
               cmd: opts.cmd,
               cols: opts.cols ?? 80,
               rows: opts.rows ?? 24,
+              ...(opts.sessionId ? { sessionId: opts.sessionId } : {}),
             }),
           );
         };
@@ -133,7 +138,7 @@ export function createPtyClient(baseUrl: string, headers: Record<string, string>
           }
         };
 
-        const onError = (event: Event) => {
+        const onError = (_event: Event) => {
           const err = new Error("WebSocket error");
           opts.onError?.(err);
           reject(err);
@@ -143,6 +148,7 @@ export function createPtyClient(baseUrl: string, headers: Record<string, string>
           if (exitResolve) {
             exitResolve({ exitCode });
           }
+          opts.onClose?.();
         };
 
         ws.addEventListener("open", onOpen);

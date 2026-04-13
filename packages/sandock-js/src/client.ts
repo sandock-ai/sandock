@@ -106,6 +106,30 @@ export interface ShellOptions {
   env?: Record<string, string>;
 }
 
+export interface PreviewUrlOptions {
+  /** Port number to preview */
+  port: number;
+}
+
+export interface SignedPreviewUrlOptions {
+  /** Port number to preview */
+  port: number;
+  /** Signed URL expiry in seconds (default: 3600) */
+  expiresIn?: number;
+}
+
+export interface PreviewUrlResult {
+  /** Full preview URL (e.g. https://3000-sandbox-abc123.sandock.ai) */
+  url: string;
+  /** Token to pass via header or cookie */
+  token: string;
+}
+
+export interface SignedPreviewUrlResult {
+  /** Self-authenticated preview URL, can be opened directly or embedded in iframe */
+  url: string;
+}
+
 export interface CodingRunOptions {
   /** User instruction for the coding agent */
   userInput: string;
@@ -258,6 +282,24 @@ export interface SandockClient extends OpenAPIClient {
       options: ShellOptions,
       callbacks?: StreamCallbacks,
     ): Promise<{ success: true; data: ExecutionResult }>;
+    /**
+     * Get a preview URL for a sandbox port (standard mode, requires token auth)
+     */
+    getPreviewUrl(
+      sandboxId: string,
+      options: PreviewUrlOptions,
+    ): Promise<{ success: true; data: PreviewUrlResult }>;
+    /**
+     * Get a signed preview URL for a sandbox port (token embedded in URL, shareable)
+     */
+    getSignedPreviewUrl(
+      sandboxId: string,
+      options: SignedPreviewUrlOptions,
+    ): Promise<{ success: true; data: SignedPreviewUrlResult }>;
+    /**
+     * Revoke a signed preview token
+     */
+    revokePreviewToken(sandboxId: string, token: string): Promise<{ success: true }>;
   };
   /** Coding agent operations (proxied to sandagent-daemon) */
   coding: {
@@ -579,6 +621,37 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
       }
 
       return { success: true as const, data: data.data as ExecutionResult };
+    },
+
+    async getPreviewUrl(sandboxId: string, options: PreviewUrlOptions) {
+      const response = await fetch(
+        `${baseUrl}/api/v1/sandbox/${sandboxId}/preview-url?port=${options.port}`,
+        { method: "GET", headers },
+      );
+      if (!response.ok) throw new Error(`Failed to get preview URL: ${response.statusText}`);
+      const result = (await response.json()) as { data: PreviewUrlResult };
+      return { success: true as const, data: result.data };
+    },
+
+    async getSignedPreviewUrl(sandboxId: string, options: SignedPreviewUrlOptions) {
+      const params = new URLSearchParams({ port: String(options.port) });
+      if (options.expiresIn) params.set("expiresIn", String(options.expiresIn));
+      const response = await fetch(
+        `${baseUrl}/api/v1/sandbox/${sandboxId}/signed-preview-url?${params}`,
+        { method: "GET", headers },
+      );
+      if (!response.ok) throw new Error(`Failed to get signed preview URL: ${response.statusText}`);
+      const result = (await response.json()) as { data: SignedPreviewUrlResult };
+      return { success: true as const, data: result.data };
+    },
+
+    async revokePreviewToken(sandboxId: string, token: string) {
+      const response = await fetch(
+        `${baseUrl}/api/v1/sandbox/${sandboxId}/preview-token/${token}`,
+        { method: "DELETE", headers },
+      );
+      if (!response.ok) throw new Error(`Failed to revoke preview token: ${response.statusText}`);
+      return { success: true as const };
     },
   };
 
