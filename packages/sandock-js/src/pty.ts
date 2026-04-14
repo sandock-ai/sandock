@@ -67,7 +67,7 @@ export function createPtyClient(baseUrl: string, headers: Record<string, string>
      */
     async create(sandboxId: string, opts: PtyCreateOptions): Promise<PtyHandle> {
       // Build WebSocket URL
-      const wsUrl = baseUrl.replace(/^http/, "ws") + `/api/v1/sandbox/pty/ws/${sandboxId}`;
+      const wsUrl = `${baseUrl.replace(/^http/, "ws")}/api/v1/sandbox/pty/ws/${sandboxId}`;
 
       const token = getToken();
       // Sec-WebSocket-Protocol subprotocol for auth: "bearer.<token>"

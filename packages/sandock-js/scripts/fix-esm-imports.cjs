@@ -1,6 +1,6 @@
 // Append .js to relative imports in dist/ for Node.js ESM compatibility.
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 const dir = path.join(__dirname, "..", "dist");
 for (const f of fs.readdirSync(dir)) {
   if (!f.endsWith(".js") && !f.endsWith(".d.ts")) continue;

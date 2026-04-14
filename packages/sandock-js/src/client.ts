@@ -667,7 +667,10 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
         throw new Error(`Failed to start coding run: ${response.statusText}`);
       }
 
-      const reader = response.body!.getReader();
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("No response body");
+      }
       const decoder = new TextDecoder();
       let buffer = "";
 
