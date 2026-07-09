@@ -390,7 +390,7 @@ export interface SandockClient extends OpenAPIClient {
  *
  * // Create sandbox with custom title
  * const sandbox = await client.sandbox.create({
- *   image: 'node:20-alpine',
+ *   image: 'node:24.18.0-alpine',
  *   title: 'My API Server'
  * })
  *

@@ -11,9 +11,9 @@ export default class SandboxCreate extends Command {
   static override description = "Create a new sandbox";
 
   static override examples = [
-    "<%= config.bin %> <%= command.id %> --image node:20",
+    "<%= config.bin %> <%= command.id %> --image node:24.18.0",
     "<%= config.bin %> <%= command.id %> --image python:3.11 --space my-space",
-    "<%= config.bin %> <%= command.id %> -i node:20-alpine",
+    "<%= config.bin %> <%= command.id %> -i node:24.18.0-alpine",
   ];
 
   static override flags = {

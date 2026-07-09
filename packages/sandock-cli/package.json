@@ -52,12 +52,12 @@
   "devDependencies": {
     "@oclif/prettier-config": "^0.2.1",
     "@types/inquirer": "^9.0.9",
-    "@types/node": "^20.14.12",
+    "@types/node": "^24.13.2",
     "tsx": "^4.19.2",
     "typescript": "^5.8.3"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.18.0"
   },
   "oclif": {
     "bin": "sandock",

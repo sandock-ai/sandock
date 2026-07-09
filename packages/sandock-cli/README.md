@@ -28,7 +28,7 @@ sandock --help
 
 ```bash
 # Create and enter a Node.js sandbox
-sandock run node:20-alpine --shell
+sandock run node:24.18.0-alpine --shell
 
 # Create and enter Python REPL
 sandock run python:3.12 --shell --cmd python
@@ -63,19 +63,19 @@ The `run` command creates a sandbox and optionally enters an interactive shell:
 
 ```bash
 # Create and enter shell
-sandock run node:20-alpine --shell
+sandock run node:24.18.0-alpine --shell
 
 # Create with custom shell command
 sandock run python:3.12 --shell --cmd python
 
 # Create with resource limits
-sandock run node:20-alpine --shell --cpu 2 --memory 512
+sandock run node:24.18.0-alpine --shell --cpu 2 --memory 512
 
 # Create with custom name
 sandock run ubuntu:24.04 --shell --title "my-dev-env"
 
 # Create only (no shell)
-sandock run node:20-alpine
+sandock run node:24.18.0-alpine
 ```
 
 ### Sandbox Management
@@ -87,7 +87,7 @@ sandock run node:20-alpine
 sandock sandbox create --name my-sandbox
 
 # Create with custom image
-sandock sandbox create --name my-sandbox --image node:20-alpine
+sandock sandbox create --name my-sandbox --image node:24.18.0-alpine
 sandock sandbox create -n python-env -i python:3.11
 ```
 
@@ -154,7 +154,7 @@ sandock sandbox run-code sb_12345 -l typescript -c "const x: number = 1; console
 Create a sandbox from image and optionally enter interactive shell
 
 **Args:**
-- `image` (required): Docker image (e.g., node:20-alpine, python:3.12, ubuntu:24.04)
+- `image` (required): Docker image (e.g., node:24.18.0-alpine, python:3.12, ubuntu:24.04)
 
 **Flags:**
 - `--shell`: Enter interactive shell after creation
@@ -165,7 +165,7 @@ Create a sandbox from image and optionally enter interactive shell
 
 **Examples:**
 ```bash
-sandock run node:20-alpine --shell
+sandock run node:24.18.0-alpine --shell
 sandock run python:3.12 --shell --cmd python
 sandock run ubuntu:24.04 --cpu 2 --memory 512
 ```
@@ -281,7 +281,7 @@ sandock sandbox preview-url sb_12345 --port 3000 --signed --expires 7200
 
 ```bash
 # Quick start: create and enter shell
-sandock run node:20-alpine --shell
+sandock run node:24.18.0-alpine --shell
 
 # Create Python sandbox and enter REPL
 sandock run python:3.12 --shell --cmd python
@@ -290,7 +290,7 @@ sandock run python:3.12 --shell --cmd python
 sandock run ubuntu:24.04 --shell --cpu 2 --memory 1024 --title "my-env"
 
 # Create a Node.js sandbox (traditional way)
-sandock sandbox create --name my-app --image node:20
+sandock sandbox create --name my-app --image node:24.18.0
 
 # List all sandboxes
 sandock sandbox list
@@ -338,7 +338,7 @@ pnpm install
 pnpm build
 
 # Run locally
-pnpm dev run node:20-alpine --shell
+pnpm dev run node:24.18.0-alpine --shell
 pnpm dev config --show
 ```
 

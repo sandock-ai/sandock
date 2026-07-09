@@ -136,7 +136,7 @@
 const client = createSandockClient({ baseUrl: 'https://sandock.ai' })
 
 // 2. 创建沙箱
-const sandbox = await client.POST('/api/sandbox', { body: { image: 'node:20' } })
+const sandbox = await client.POST('/api/sandbox', { body: { image: 'node:24.18.0' } })
 
 // 3. 执行代码
 const result = await client.POST('/api/sandbox/{id}/code', {

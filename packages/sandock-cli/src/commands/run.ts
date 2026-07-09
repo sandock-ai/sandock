@@ -2,7 +2,7 @@
  * Run command — Create a sandbox from image and optionally enter interactive shell
  *
  * Usage:
- *   sandock run node:20-alpine --shell          # create + enter shell
+ *   sandock run node:24.18.0-alpine --shell          # create + enter shell
  *   sandock run python:3.12 --shell --cmd python # create + python REPL
  *   sandock run ubuntu:24.04                     # create only (no shell)
  */
@@ -16,7 +16,7 @@ export default class Run extends Command {
   static override description = "Create a sandbox from image and optionally enter shell";
 
   static override examples = [
-    "<%= config.bin %> run node:20-alpine --shell",
+    "<%= config.bin %> run node:24.18.0-alpine --shell",
     "<%= config.bin %> run python:3.12 --shell --cmd python",
     "<%= config.bin %> run ubuntu:24.04",
   ];

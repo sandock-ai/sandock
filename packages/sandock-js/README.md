@@ -28,8 +28,8 @@ const client = createSandockClient({
 })
 
 // Create a sandbox
-const sandbox = await client.sandbox.create({ 
-  image: 'node:20-alpine' 
+const sandbox = await client.sandbox.create({
+  image: 'node:24.18.0-alpine'
 })
 console.log('Sandbox ID:', sandbox.data.id)
 
@@ -66,7 +66,7 @@ All API responses follow a consistent structure:
 
 **Example:**
 ```typescript
-const result = await client.sandbox.create({ image: 'node:20-alpine' })
+const result = await client.sandbox.create({ image: 'node:24.18.0-alpine' })
 // result = {
 //   success: true,
 //   code: 200,
@@ -414,7 +414,7 @@ const volume = await client.volume.getByName('my-data', true)
 
 // Create sandbox with volume mount
 const sandbox = await client.sandbox.create({
-  image: 'node:20-alpine',
+  image: 'node:24.18.0-alpine',
   volumes: [
     {
       volumeId: volume.data.id,

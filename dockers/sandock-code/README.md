@@ -5,7 +5,7 @@ A slim Docker image for running Sandock code with pre-installed development tool
 ## Included Tools
 
 - **Python 3** - Python runtime
-- **Node.js 22** - JavaScript runtime
+- **Node.js 24.18.0 LTS** - JavaScript runtime
 - **pnpm** - Fast, disk space efficient package manager
 - **tsx** - TypeScript execute with Node.js
 - **Deno** - Modern JavaScript/TypeScript runtime
@@ -112,6 +112,6 @@ This will check: node, pnpm, tsx, python, deno, and code-server.
 
 ## Image Size
 
-Based on `node:22-bookworm-slim` for minimal image size while maintaining full functionality.
+Based on `node:24.18.0-bookworm-slim` for minimal image size while maintaining full functionality.
 
 **Note**: The image includes code-server which adds approximately 150MB to the image size.

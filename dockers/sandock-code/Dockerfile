@@ -1,7 +1,7 @@
 # Sandock Code Runtime Environment
 # Slim image with Python, Node.js, pnpm, tsx, Deno and code-server pre-installed
 
-FROM node:22-bookworm-slim
+FROM node:24.18.0-bookworm-slim
 
 # Set environment variables
 ENV PNPM_HOME="/pnpm"

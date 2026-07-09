@@ -125,7 +125,7 @@ npx sandock config --set-url https://sandock.ai
 npx sandock sandbox create --name my-app
 
 # Or specify a custom image
-npx sandock sandbox create --name my-app --image node:20-alpine
+npx sandock sandbox create --name my-app --image node:24.18.0-alpine
 
 # List sandboxes
 npx sandock sandbox list

@@ -188,7 +188,7 @@ const volume = await client.volume.getByName('my-data', true)
 ```typescript
 // 2. Create sandbox and mount volume
 const sandbox = await client.sandbox.create({
-  image: 'node:20-alpine',
+  image: 'node:24.18.0-alpine',
   volumes: [{ volumeId: volume.data.id, mountPath: '/data' }]
 })
 ```

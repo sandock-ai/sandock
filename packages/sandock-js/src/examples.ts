@@ -49,7 +49,7 @@ async function createSandbox() {
   const { data, error } = await client.POST("/api/v1/sandbox", {
     body: {
       // spaceId is optional - if not provided, uses user's personal space
-      image: "node:20-alpine",
+      image: "node:24.18.0-alpine",
       command: ["node", "--version"],
       env: {
         NODE_ENV: "development",

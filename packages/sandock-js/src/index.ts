@@ -14,7 +14,7 @@
  * })
  *
  * // Create sandbox and run code
- * const sandbox = await client.sandbox.create({ image: 'node:20-alpine' })
+ * const sandbox = await client.sandbox.create({ image: 'node:24.18.0-alpine' })
  * const result = await client.sandbox.runCode(sandbox.data.id, {
  *   language: 'javascript',
  *   code: 'console.log("hello")'
