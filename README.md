@@ -138,6 +138,22 @@ npx sandock sandbox exec sb_12345 "npm install && npm start"
 
 ---
 
+<!-- sandock-server:start -->
+### Self-hosted server (`apps/sandock`)
+
+Sandock also ships as a headless, single-tenant, open-source server you can
+self-host — no auth/UI, plain REST/OpenAPI, zero-infra by default (PGLite,
+no Docker/Kubernetes required for the sandbox execution itself).
+
+```bash
+docker build -f apps/sandock/Dockerfile -t sandock .
+docker run -d -p 3070:3070 -v sandock-data:/data --name sandock sandock
+```
+
+See [`apps/sandock/README.md`](./apps/sandock/README.md) for the full API
+reference and configuration.
+<!-- sandock-server:end -->
+
 ## 📚 API Documentation
 
 ### Complete API Reference
