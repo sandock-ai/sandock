@@ -46,7 +46,7 @@
     "conf": "^13.1.0",
     "inquirer": "^12.10.0",
     "ora": "^8.2.0",
-    "sandock": "workspace:*",
+    "sandock": "workspace:^",
     "ws": "^8.18.0"
   },
   "devDependencies": {

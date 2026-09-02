@@ -5,23 +5,21 @@ on:
     branches:
       - main
     paths:
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - "packages/sandock-js/**"
       - "packages/sandock-cli/**"
       - ".github/workflows/publish-sandock-js-sdk-cli.yml"
   workflow_dispatch:
-    inputs:
-      js_version:
-        description: "sandock-js version (e.g., 0.1.1) - leave empty to use package.json"
-        required: false
-        type: string
-      cli_version:
-        description: "sandock-cli version (e.g., 0.1.1) - leave empty to use package.json"
-        required: false
-        type: string
+
+concurrency:
+  group: publish-sandock-packages-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  publish-sdk:
-    name: Publish sandock-js (SDK)
+  publish:
+    name: Validate and publish SDK and CLI
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -32,30 +30,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Publish sandock-js
-        uses: ./.github/actions/publish-npm-package
-        with:
-          package-path: packages/sandock-js
-          package-name: sandock-js
-          version-override: ${{ github.event.inputs.js_version }}
-          npm-token: ${{ secrets.NPM_TOKEN }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-cli:
-    name: Publish sandock-cli
-    runs-on: ubuntu-latest
-    needs: publish-sdk # CLI depends on SDK, so publish SDK first
-    permissions:
-      contents: write
-      id-token: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main # Ensure we get the latest main branch including SDK version bump
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -68,50 +42,123 @@ jobs:
           node-version: 24.18.0
           registry-url: "https://registry.npmjs.org"
 
-      - name: Wait for SDK to be available on npm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify coordinated versions
+        id: versions
+        shell: bash
         run: |
-          echo "Waiting for sandock SDK to be available on npm..."
           SDK_VERSION=$(node -p "require('./packages/sandock-js/package.json').version")
-          echo "Expected SDK version: $SDK_VERSION"
+          CLI_VERSION=$(node -p "require('./packages/sandock-cli/package.json').version")
 
-          for i in {1..30}; do
-            if npm view "sandock@$SDK_VERSION" version 2>/dev/null; then
-              echo "✅ sandock@$SDK_VERSION is available on npm"
-              break
-            fi
-            echo "⏳ Attempt $i/30: SDK not yet available, waiting 10 seconds..."
-            sleep 10
-          done
-
-          # Final check
-          if ! npm view "sandock@$SDK_VERSION" version 2>/dev/null; then
-            echo "❌ Timeout: sandock@$SDK_VERSION not available after 5 minutes"
+          if [ -z "$SDK_VERSION" ] || [ "$SDK_VERSION" != "$CLI_VERSION" ]; then
+            echo "SDK and CLI versions must match (SDK=$SDK_VERSION, CLI=$CLI_VERSION)"
             exit 1
           fi
 
-          # Export version for next steps
-          echo "SDK_VERSION=$SDK_VERSION" >> $GITHUB_ENV
+          echo "version=$SDK_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Publishing coordinated version $SDK_VERSION"
 
-      - name: Update CLI dependency to latest SDK version
+      - name: Test and build SDK
         run: |
-          echo "Updating sandock dependency to ^$SDK_VERSION"
-          cd packages/sandock-cli
-          npm pkg set dependencies.sandock="^$SDK_VERSION"
-          echo "✅ Updated package.json"
-          cat package.json | grep -A 3 "dependencies"
-          cd ../..
-          pnpm install --no-frozen-lockfile
-          echo "✅ Updated lockfile"
+          pnpm --filter sandock exec vitest run
+          pnpm --filter sandock build
 
-      - name: Build sandock-js (for CLI types)
+      - name: Build and smoke test CLI
+        run: |
+          pnpm --filter sandock-cli build
+          node packages/sandock-cli/dist/bin/run.js --help
+
+      - name: Verify packed CLI manifest
+        shell: bash
+        run: |
+          VERSION="${{ steps.versions.outputs.version }}"
+          pnpm --filter sandock-cli pack --pack-destination "$RUNNER_TEMP"
+          CLI_TARBALL="$RUNNER_TEMP/sandock-cli-$VERSION.tgz"
+          PACKED_MANIFEST=$(tar -xOf "$CLI_TARBALL" package/package.json)
+
+          if echo "$PACKED_MANIFEST" | grep -q 'workspace:'; then
+            echo "Packed CLI manifest contains a workspace dependency"
+            exit 1
+          fi
+
+          PACKED_SDK_VERSION=$(echo "$PACKED_MANIFEST" | node -e \
+            "let input=''; process.stdin.on('data', chunk => input += chunk); process.stdin.on('end', () => console.log(JSON.parse(input).dependencies.sandock))")
+          if [ "$PACKED_SDK_VERSION" != "^$VERSION" ]; then
+            echo "Expected packed sandock dependency ^$VERSION, got $PACKED_SDK_VERSION"
+            exit 1
+          fi
+
+      - name: Check npm publication state
+        id: npm
+        shell: bash
+        run: |
+          VERSION="${{ steps.versions.outputs.version }}"
+
+          if npm view "sandock@$VERSION" version >/dev/null 2>&1; then
+            echo "sdk_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "sdk_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if npm view "sandock-cli@$VERSION" version >/dev/null 2>&1; then
+            echo "cli_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cli_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish SDK
+        if: steps.npm.outputs.sdk_exists == 'false'
         working-directory: packages/sandock-js
-        run: pnpm build
+        run: pnpm publish --access public --provenance --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish sandock-cli
-        uses: ./.github/actions/publish-npm-package
-        with:
-          package-path: packages/sandock-cli
-          package-name: sandock-cli
-          version-override: ${{ github.event.inputs.cli_version }}
-          npm-token: ${{ secrets.NPM_TOKEN }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Skip existing SDK
+        if: steps.npm.outputs.sdk_exists == 'true'
+        run: echo "sandock@${{ steps.versions.outputs.version }} already exists; skipping"
+
+      - name: Publish CLI
+        if: steps.npm.outputs.cli_exists == 'false'
+        working-directory: packages/sandock-cli
+        run: pnpm publish --access public --provenance --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Skip existing CLI
+        if: steps.npm.outputs.cli_exists == 'true'
+        run: echo "sandock-cli@${{ steps.versions.outputs.version }} already exists; skipping"
+
+      - name: Create GitHub releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.versions.outputs.version }}"
+
+          if ! gh release view "sandock-js-v$VERSION" >/dev/null 2>&1; then
+            gh release create "sandock-js-v$VERSION" \
+              --target "$GITHUB_SHA" \
+              --title "sandock v$VERSION" \
+              --notes "Published sandock@$VERSION to npm."
+          fi
+
+          if ! gh release view "sandock-cli-v$VERSION" >/dev/null 2>&1; then
+            gh release create "sandock-cli-v$VERSION" \
+              --target "$GITHUB_SHA" \
+              --title "sandock-cli v$VERSION" \
+              --notes "Published sandock-cli@$VERSION to npm."
+          fi
+
+      - name: Publish summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Sandock package publication"
+            echo
+            echo "- Version: ${{ steps.versions.outputs.version }}"
+            echo "- sandock previously published: ${{ steps.npm.outputs.sdk_exists }}"
+            echo "- sandock-cli previously published: ${{ steps.npm.outputs.cli_exists }}"
+          } >> "$GITHUB_STEP_SUMMARY"
