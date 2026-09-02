@@ -1,4 +1,25 @@
 ---
+title: 2026-09-01 Version 2.4.0 - Managed Volume Size Limits
+---
+
+# Version 2.4.0 - Managed Volume Size Limits
+
+Date: 2026-09-01
+Author: AI Assistant
+AI Agent: Codex
+
+## What Changed
+- Bumped `sandock` and `sandock-cli` from 2.2.7 to 2.4.0.
+- Added `sizeLimit` to volume information and volume creation options.
+- Added `client.volume.setSizeLimit(volumeId, sizeLimit?)`.
+- Routed high-level volume calls through the client's injectable fetch implementation.
+
+## Breaking Changes
+None. Existing volume calls remain compatible.
+
+---
+
+---
 title: 2026-03-19 Bump version to 2.3.0 - Add activeDeadlineSeconds to create sandbox
 ---
 

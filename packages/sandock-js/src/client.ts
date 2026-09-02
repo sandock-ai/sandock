@@ -81,6 +81,8 @@ export interface VolumeInfo {
   status: "pending_create" | "ready" | "error" | "deleting" | "deleted";
   storageType: "ebs" | "s3";
   sizeBytes: number;
+  sizeUpdatedAt: string | null;
+  sizeLimit: number | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
@@ -344,9 +346,15 @@ export interface SandockClient extends OpenAPIClient {
       name: string,
       options?: {
         storageType?: "ebs" | "s3";
+        sizeLimit?: number;
         metadata?: Record<string, unknown>;
         spaceId?: string;
       },
+    ): Promise<{ success: true; data: VolumeInfo }>;
+    /** Apply a hard size limit, or omit it to restore the subscription default */
+    setSizeLimit(
+      volumeId: string,
+      sizeLimit?: number,
     ): Promise<{ success: true; data: VolumeInfo }>;
     /** Get volume by ID */
     get(volumeId: string): Promise<{ success: true; data: VolumeInfo }>;
@@ -417,6 +425,7 @@ export interface SandockClient extends OpenAPIClient {
  */
 export function createSandockClient(options: SandockClientOptions = {}): SandockClient {
   const { baseUrl = "https://sandock.ai", headers = {}, fetch: customFetch } = options;
+  const requestFetch = customFetch ?? globalThis.fetch;
 
   // Create base openapi-fetch client
   const rawClient = createClient<paths>({
@@ -785,7 +794,7 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
   // Volume operations
   const volume = {
     async list() {
-      const response = await fetch(`${baseUrl}/api/v1/volume`, {
+      const response = await requestFetch(`${baseUrl}/api/v1/volume`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -805,16 +814,18 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
       name: string,
       options?: {
         storageType?: "ebs" | "s3";
+        sizeLimit?: number;
         metadata?: Record<string, unknown>;
         spaceId?: string;
       },
     ) {
       const body: Record<string, unknown> = { name };
       if (options?.storageType !== undefined) body.storageType = options.storageType;
+      if (options?.sizeLimit !== undefined) body.sizeLimit = options.sizeLimit;
       if (options?.metadata !== undefined) body.metadata = options.metadata;
       if (options?.spaceId !== undefined) body.spaceId = options.spaceId;
 
-      const response = await fetch(`${baseUrl}/api/v1/volume`, {
+      const response = await requestFetch(`${baseUrl}/api/v1/volume`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -831,8 +842,26 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
       return { success: true as const, data: result.data };
     },
 
+    async setSizeLimit(volumeId: string, sizeLimit?: number) {
+      const response = await requestFetch(`${baseUrl}/api/v1/volume/${volumeId}/size-limit`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...headers,
+        },
+        body: JSON.stringify(sizeLimit === undefined ? {} : { sizeLimit }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to set volume size limit: ${response.statusText}`);
+      }
+
+      const result = (await response.json()) as { data: VolumeInfo };
+      return { success: true as const, data: result.data };
+    },
+
     async get(volumeId: string) {
-      const response = await fetch(`${baseUrl}/api/v1/volume/${volumeId}`, {
+      const response = await requestFetch(`${baseUrl}/api/v1/volume/${volumeId}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -860,7 +889,7 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
         url.searchParams.set("storageType", storageType);
       }
 
-      const response = await fetch(url.toString(), {
+      const response = await requestFetch(url.toString(), {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -877,7 +906,7 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
     },
 
     async delete(volumeId: string) {
-      const response = await fetch(`${baseUrl}/api/v1/volume/${volumeId}`, {
+      const response = await requestFetch(`${baseUrl}/api/v1/volume/${volumeId}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

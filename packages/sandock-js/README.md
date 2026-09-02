@@ -308,7 +308,7 @@ const volumes = await client.volume.list()
 // Returns: { success: true, data: { volumes: [{ id, name, status, ... }] } }
 ```
 
-#### `client.volume.create(name, metadata?, spaceId?)`
+#### `client.volume.create(name, options?)`
 
 Create a new volume.
 
@@ -316,14 +316,28 @@ Create a new volume.
 const volume = await client.volume.create('my-data')
 // Returns: { success: true, data: { id: 'vol_xxx', name: 'my-data', status: 'ready', ... } }
 
-// With optional metadata
-const volume = await client.volume.create('my-data', { project: 'demo' })
+// With an explicit hard size limit (bytes)
+const volume = await client.volume.create('my-data', {
+  sizeLimit: 50 * 1024 ** 3,
+})
 
-// With optional spaceId (creates volume in specified space)
-const volume = await client.volume.create('my-data', undefined, 'space_xxx')
+// With storage backend, metadata, and optional space
+const volume = await client.volume.create('my-data', {
+  storageType: 'ebs',
+  metadata: { project: 'demo' },
+  spaceId: 'space_xxx',
+})
+```
 
-// With both metadata and spaceId
-const volume = await client.volume.create('my-data', { project: 'demo' }, 'space_xxx')
+When `sizeLimit` is omitted, Sandock applies the current space subscription default.
+
+#### `client.volume.setSizeLimit(volumeId, sizeLimit?)`
+
+Apply a whole-GiB hard size limit. Omit `sizeLimit` to restore the subscription default.
+
+```typescript
+await client.volume.setSizeLimit('vol_xxx', 50 * 1024 ** 3)
+await client.volume.setSizeLimit('vol_xxx')
 ```
 
 #### `client.volume.get(volumeId)`
@@ -332,7 +346,7 @@ Get volume by ID.
 
 ```typescript
 const volume = await client.volume.get('vol_xxx')
-// Returns: { success: true, data: { id, name, status, sizeBytes, ... } }
+// Returns: { success: true, data: { id, name, status, sizeBytes, sizeLimit, ... } }
 ```
 
 #### `client.volume.getByName(name, create?, spaceId?, storageType?)`
