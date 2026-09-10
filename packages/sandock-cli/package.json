@@ -1,6 +1,6 @@
 {
   "name": "sandock-cli",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Command-line interface for Sandock - Sandbox in Docker for AI Agents",
   "type": "module",
   "license": "MIT",
@@ -38,6 +38,8 @@
     "build": "tsc -p tsconfig.json && chmod +x dist/bin/run.js",
     "clean": "rm -rf dist",
     "dev": "tsx src/bin/run.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
@@ -54,7 +56,8 @@
     "@types/inquirer": "^9.0.9",
     "@types/node": "^26.3.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=24.18.0"

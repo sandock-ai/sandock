@@ -65,8 +65,9 @@ jobs:
           pnpm --filter sandock exec vitest run
           pnpm --filter sandock build
 
-      - name: Build and smoke test CLI
+      - name: Test, build, and smoke test CLI
         run: |
+          pnpm --filter sandock-cli test
           pnpm --filter sandock-cli build
           node packages/sandock-cli/dist/bin/run.js --help
 

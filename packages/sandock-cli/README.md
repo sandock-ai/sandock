@@ -27,6 +27,9 @@ sandock --help
 ## Quick Start
 
 ```bash
+# Sign in once through your browser and create an API key
+sandock login
+
 # Create and enter a Node.js sandbox
 sandock run node:24.18.0-alpine --shell
 
@@ -41,7 +44,21 @@ sandock run ubuntu:24.04
 
 ### Configuration
 
-Configure your Sandock API URL and credentials:
+Sign in interactively to create and save an API key:
+
+```bash
+# Open the authorization page in your default browser
+sandock login
+
+# Print the URL and one-time code without opening a browser
+sandock login --no-browser
+```
+
+The CLI prints the authorization URL and one-time code, waits for approval, and saves the newly
+created API key only after authorization succeeds. If a key is already configured, replacing it
+requires confirmation and defaults to cancel. The API key itself is never printed.
+
+You can also configure your Sandock API URL and credentials manually:
 
 ```bash
 # Show current configuration
@@ -148,6 +165,19 @@ sandock sandbox run-code sb_12345 -l typescript -c "const x: number = 1; console
 ```
 
 ## Available Commands
+
+### `sandock login`
+
+Sign in through a browser using a one-time code and create an API key.
+
+**Flags:**
+- `--no-browser`: Print the authorization URL without opening a browser
+
+**Examples:**
+```bash
+sandock login
+sandock login --no-browser
+```
 
 ### `sandock run <image>`
 
