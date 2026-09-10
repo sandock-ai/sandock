@@ -1,6 +1,6 @@
 {
   "name": "sandock-cli",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "Command-line interface for Sandock - Sandbox in Docker for AI Agents",
   "type": "module",
   "license": "MIT",
@@ -39,6 +39,7 @@
     "clean": "rm -rf dist",
     "dev": "tsx src/bin/run.ts",
     "test": "vitest run",
+    "test:integration": "pnpm build && node --test test/*.integration.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "pnpm run build"
   },

@@ -100,12 +100,12 @@ sandock run node:24.18.0-alpine
 #### Create a sandbox
 
 ```bash
-# Create with default image
-sandock sandbox create --name my-sandbox
+# Create in your personal space
+sandock sandbox create --image node:24.18.0
 
 # Create with custom image
-sandock sandbox create --name my-sandbox --image node:24.18.0-alpine
-sandock sandbox create -n python-env -i python:3.11
+sandock sandbox create --image node:24.18.0-alpine
+sandock sandbox create -i python:3.11
 ```
 
 #### List sandboxes
@@ -215,9 +215,8 @@ Manage CLI configuration (API URL, API key)
 Create a new sandbox
 
 **Flags:**
-- `--name, -n <name>` (required): Sandbox name
-- `--image, -i <image>`: Docker image to use (default on server: sandockai/sandock-code:latest)
-- `--space, -s <id>`: Space ID (default: default)
+- `--image, -i <image>` (required): Docker image to use
+- `--space, -s <id>`: Optional; omit to use your personal space
 
 ### `sandock sandbox list`
 
@@ -320,7 +319,7 @@ sandock run python:3.12 --shell --cmd python
 sandock run ubuntu:24.04 --shell --cpu 2 --memory 1024 --title "my-env"
 
 # Create a Node.js sandbox (traditional way)
-sandock sandbox create --name my-app --image node:24.18.0
+sandock sandbox create --image node:24.18.0
 
 # List all sandboxes
 sandock sandbox list
@@ -382,3 +381,37 @@ pnpm dev config --show
 ## License
 
 MIT License - see [LICENSE](./LICENSE) for details
+
+### Sandbox lifetime (2.5.1)
+
+Both `sandbox create` and `run` accept:
+
+- `--active-deadline-seconds <seconds>`: Maximum runtime, integer 1–86400.
+- `--auto-delete-interval <minutes>`: Delay after stopping; -1 disables deletion, 0 requests immediate deletion, positive values wait that many minutes. Deletion is processed by the service scheduler.
+
+Omit either option to keep its service default. The runtime limit is independent of signed URL expiry.
+
+```bash
+sandock sandbox create --image node:24.18.0 --active-deadline-seconds 3600 --auto-delete-interval 0
+sandock run node:24.18.0 --active-deadline-seconds 3600 --auto-delete-interval 0
+```
+
+### Signed Preview URLs (2.5.1)
+
+```bash
+# Print a signed URL using the SDK (port required, expiry 60–86400 seconds)
+sandock sandbox preview sb_example --port 3000 --expires-in 3600
+
+# Revoke the token from that URL using the SDK
+sandock sandbox revoke-preview sb_example t0123456789abcde
+```
+
+The default expiry is 3600 seconds. For a returned URL such as
+`https://3000-t0123456789abcde.sandock.ai`, the token is `t0123456789abcde`.
+Treat the URL and token as credentials. Revoking a token affects every URL carrying it;
+it does not stop or delete the sandbox. Proxy caches and existing connections may outlast
+the revocation response. Generating again may refresh a still-valid token for the same
+sandbox and port; it is not a way to revoke the old URL.
+
+These commands directly use `sandock` SDK's `getSignedPreviewUrl` and
+`revokePreviewToken`; the CLI does not implement its own signing or revocation.

@@ -48,6 +48,16 @@ export default class Run extends Command {
     title: Flags.string({
       description: "Sandbox name",
     }),
+    "active-deadline-seconds": Flags.integer({
+      description: "Maximum runtime in seconds (1-86400; server default: 1800)",
+      min: 1,
+      max: 86400,
+    }),
+    "auto-delete-interval": Flags.integer({
+      description:
+        "Minutes after stopping before deletion (-1: disable, 0: immediate; server default: 1440)",
+      min: -1,
+    }),
   };
 
   public async run(): Promise<void> {
@@ -62,6 +72,12 @@ export default class Run extends Command {
       ...(flags.cpu && { cpu: flags.cpu }),
       ...(flags.memory && { memory: flags.memory }),
       ...(flags.title && { title: flags.title }),
+      ...(flags["active-deadline-seconds"] !== undefined && {
+        activeDeadlineSeconds: flags["active-deadline-seconds"],
+      }),
+      ...(flags["auto-delete-interval"] !== undefined && {
+        autoDeleteInterval: flags["auto-delete-interval"],
+      }),
     });
     spinner.succeed(chalk.green(`Sandbox created: ${result.data.id}`));
 
