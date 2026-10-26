@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createSandockClient } from "./index";
+import { createSandockClient, isSandboxNotFoundError, SandockError } from "./index";
 
 const DEFAULT_BASE_URL = process.env.SANDOCK_API_URL || "http://localhost:3030";
 const TEST_TIMEOUT = 60_000; // 60 seconds for most tests
@@ -182,6 +182,269 @@ describe("createSandockClient", () => {
       fetch: customFetch as typeof fetch,
     });
     expect(client).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Unit tests against a mocked fetch: new-server paths and old-server fallbacks.
+// (SDK and server ship separately, so every new call must degrade on a server that predates it.)
+// ---------------------------------------------------------------------------
+
+interface RecordedCall {
+  method: string;
+  path: string;
+  query: URLSearchParams;
+  body: any;
+  signal?: AbortSignal;
+}
+
+const envelope = (data: unknown, status = 200) =>
+  new Response(JSON.stringify({ success: status < 400, code: status, message: "x", data }), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+
+/** A fetch that records every call and answers through `handler` (default: 404 route-missing). */
+function mockServer(handler: (call: RecordedCall) => Response | Promise<Response> | undefined) {
+  const calls: RecordedCall[] = [];
+  const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const req = input instanceof Request ? input : new Request(input, init);
+    const url = new URL(req.url);
+    const text = req.body ? await req.text() : "";
+    const call: RecordedCall = {
+      method: req.method,
+      path: url.pathname,
+      query: url.searchParams,
+      body: text ? JSON.parse(text) : undefined,
+      signal: init?.signal ?? req.signal,
+    };
+    calls.push(call);
+    return (
+      (await handler(call)) ?? envelope({}, 404) // what an old server answers for a route it doesn't have
+    );
+  };
+  const client = createSandockClient({
+    baseUrl: "http://sandock.test",
+    fetch: fetchImpl as typeof fetch,
+  });
+  return { client, calls };
+}
+
+const notFoundCode = () =>
+  new Response(
+    JSON.stringify({
+      success: false,
+      code: 404,
+      message: "Sandbox not found",
+      data: { code: "SANDBOX_NOT_FOUND" },
+    }),
+    { status: 404 },
+  );
+
+const execResult = (stdout: string, exitCode = 0) =>
+  envelope({ stdout, stderr: "", exitCode, timedOut: false, durationMs: 1 });
+
+/** Rebuild the bytes an old server would end up with from the SDK's shell-fallback commands. */
+function bytesFromShellFallback(calls: RecordedCall[]): Buffer {
+  const parts = calls
+    .filter((c) => c.path.endsWith("/shell"))
+    .map((c) => /printf '%s' '([A-Za-z0-9+/=]*)' \| base64 -d >> /.exec(c.body.cmd)?.[1])
+    .filter((x): x is string => x !== undefined);
+  return Buffer.concat(parts.map((p) => Buffer.from(p, "base64")));
+}
+
+describe("sandbox.get / getById", () => {
+  it("uses GET /sandbox/{id} on new servers", async () => {
+    const { client, calls } = mockServer((c) =>
+      c.method === "GET" && c.path === "/api/v1/sandbox/sb1"
+        ? envelope({ id: "sb1", status: "RUNNING" })
+        : undefined,
+    );
+    const res = await client.sandbox.get("sb1");
+    expect(res.data).toEqual({ id: "sb1", status: "RUNNING" });
+    expect(calls.map((c) => c.path)).toEqual(["/api/v1/sandbox/sb1"]);
+  });
+
+  it("throws a SANDBOX_NOT_FOUND SandockError (getById → null) without listing", async () => {
+    const { client, calls } = mockServer((c) =>
+      c.path === "/api/v1/sandbox/gone" ? notFoundCode() : undefined,
+    );
+    const err = await client.sandbox.get("gone").catch((e) => e);
+    expect(err).toBeInstanceOf(SandockError);
+    expect(err.code).toBe("SANDBOX_NOT_FOUND");
+    expect(isSandboxNotFoundError(err)).toBe(true);
+    expect(await client.sandbox.getById("gone")).toBeNull();
+    expect(calls.some((c) => c.path === "/api/v1/sandbox")).toBe(false);
+  });
+
+  it("falls back to list-and-filter on an old server (route 404 without the code)", async () => {
+    const { client, calls } = mockServer((c) =>
+      c.path === "/api/v1/sandbox"
+        ? envelope({ items: [{ id: "sb1", status: "RUNNING" }] })
+        : undefined,
+    );
+    expect((await client.sandbox.get("sb1")).data).toEqual({ id: "sb1", status: "RUNNING" });
+    expect(calls.map((c) => c.path)).toEqual(["/api/v1/sandbox/sb1", "/api/v1/sandbox"]);
+
+    const err = await client.sandbox.get("other").catch((e) => e);
+    expect(isSandboxNotFoundError(err)).toBe(true);
+    expect(await client.sandbox.getById("other")).toBeNull();
+  });
+
+  it("falls back on 405 too", async () => {
+    const { client } = mockServer((c) =>
+      c.path === "/api/v1/sandbox"
+        ? envelope({ items: [{ id: "sb1", status: "STOPPED" }] })
+        : envelope({}, 405),
+    );
+    expect((await client.sandbox.getById("sb1"))?.status).toBe("STOPPED");
+  });
+
+  it("does not mistake auth errors for not-found", async () => {
+    const { client, calls } = mockServer(() => envelope({}, 401));
+    const err = await client.sandbox.get("sb1").catch((e) => e);
+    expect(err).toBeInstanceOf(SandockError);
+    expect(err.code).toBe("HTTP_401");
+    expect(err.status).toBe(401);
+    await expect(client.sandbox.getById("sb1")).rejects.toThrow(SandockError);
+    expect(calls.some((c) => c.path === "/api/v1/sandbox")).toBe(false);
+  });
+});
+
+describe("fs binary read/write", () => {
+  const bytes = new Uint8Array([...Array.from({ length: 256 }, (_, i) => i), 0xc3, 0x28, 0x00]);
+
+  it("sends base64 with encoding on a server that has the get-by-id route", async () => {
+    const { client, calls } = mockServer((c) => {
+      if (c.path === "/api/v1/sandbox/sb1") return envelope({ id: "sb1", status: "RUNNING" });
+      if (c.path.endsWith("/fs/write")) return envelope(true);
+      return undefined;
+    });
+    await client.fs.write("sb1", "bin/a.dat", bytes, { executable: true });
+    const write = calls.find((c) => c.path.endsWith("/fs/write"));
+    expect(write?.body.encoding).toBe("base64");
+    expect(write?.body.executable).toBe(true);
+    expect(Buffer.from(write?.body.content, "base64").equals(Buffer.from(bytes))).toBe(true);
+    expect(calls.some((c) => c.path.endsWith("/shell"))).toBe(false);
+
+    // Capability is cached: a second write doesn't probe again.
+    await client.fs.write("sb1", "bin/b.dat", bytes);
+    expect(calls.filter((c) => c.path === "/api/v1/sandbox/sb1")).toHaveLength(1);
+  });
+
+  it("never sends base64 to an old server; writes via the base64 -d shell fallback", async () => {
+    const { client, calls } = mockServer((c) => {
+      // An old server would accept (and corrupt) an encoded write, so it must never get one.
+      if (c.path.endsWith("/fs/write")) return envelope(true);
+      if (c.path.endsWith("/shell")) return execResult("");
+      return undefined; // no GET /sandbox/{id} → 404
+    });
+    const big = new Uint8Array(150_000).map((_, i) => (i * 7) % 256);
+    await client.fs.write("sb1", "out/big.bin", big);
+    expect(calls.some((c) => c.path.endsWith("/fs/write"))).toBe(false);
+    const shellCmds = calls.filter((c) => c.path.endsWith("/shell")).map((c) => c.body.cmd);
+    expect(shellCmds[0]).toContain("mkdir -p");
+    expect(shellCmds.length).toBeGreaterThan(3); // chunked: no single huge exec argument
+    expect(bytesFromShellFallback(calls).equals(Buffer.from(big))).toBe(true);
+  });
+
+  it("writes strings exactly as before (no probe, no encoding field)", async () => {
+    const { client, calls } = mockServer((c) =>
+      c.path.endsWith("/fs/write") ? envelope(true) : undefined,
+    );
+    await client.fs.write("sb1", "a.txt", "héllo");
+    expect(calls).toHaveLength(1);
+    expect(calls[0].body).toEqual({ path: "a.txt", content: "héllo" });
+  });
+
+  it("surfaces a failed shell fallback as an error", async () => {
+    const { client } = mockServer((c) =>
+      c.path.endsWith("/shell") ? execResult("", 1) : undefined,
+    );
+    await expect(client.fs.write("sb1", "x.bin", bytes)).rejects.toThrow(/Failed to write/);
+  });
+
+  it("readBytes decodes base64 when the server echoes encoding", async () => {
+    const { client, calls } = mockServer((c) =>
+      c.path.endsWith("/fs/read")
+        ? envelope({
+            path: c.query.get("path"),
+            content: Buffer.from(bytes).toString("base64"),
+            encoding: c.query.get("encoding"),
+          })
+        : undefined,
+    );
+    const res = await client.fs.readBytes("sb1", "bin/a.dat");
+    expect(Buffer.from(res.data.content).equals(Buffer.from(bytes))).toBe(true);
+    expect(calls[0].query.get("encoding")).toBe("base64");
+  });
+
+  it("readBytes falls back to the shell when an old server ignores encoding", async () => {
+    const { client, calls } = mockServer((c) => {
+      // Old server: lossy UTF-8 text, no `encoding` echoed.
+      if (c.path.endsWith("/fs/read")) return envelope({ path: "a", content: "\ufffd(" });
+      if (c.path.endsWith("/shell") && c.body.cmd === "base64 'bin/a.dat'")
+        return execResult(`${Buffer.from(bytes).toString("base64")}\n`);
+      return undefined;
+    });
+    const res = await client.fs.readBytes("sb1", "bin/a.dat");
+    expect(Buffer.from(res.data.content).equals(Buffer.from(bytes))).toBe(true);
+
+    // Learned: the next binary read goes straight to the shell.
+    await client.fs.readBytes("sb1", "bin/a.dat");
+    expect(calls.filter((c) => c.path.endsWith("/fs/read"))).toHaveLength(1);
+  });
+});
+
+describe("shell / runCode cancellation", () => {
+  const hangingServer = () =>
+    mockServer(
+      (c) =>
+        new Promise<Response>((_resolve, reject) => {
+          c.signal?.addEventListener("abort", () =>
+            reject(new DOMException("The operation was aborted.", "AbortError")),
+          );
+        }),
+    );
+
+  it("passes the signal to the non-streaming request", async () => {
+    const { client, calls } = hangingServer();
+    const controller = new AbortController();
+    const pending = client.sandbox.shell("sb1", { cmd: "sleep 30", signal: controller.signal });
+    await new Promise((r) => setTimeout(r, 20));
+    controller.abort();
+    await expect(pending).rejects.toThrow(/abort/i);
+    expect(calls[0].path).toBe("/api/v1/sandbox/sb1/shell");
+    expect(calls[0].signal?.aborted).toBe(true);
+  });
+
+  it("passes the signal to the streaming request", async () => {
+    const { client, calls } = hangingServer();
+    const controller = new AbortController();
+    const pending = client.sandbox.shell(
+      "sb1",
+      { cmd: "sleep 30", signal: controller.signal },
+      { onStdout: () => {} },
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    controller.abort();
+    await expect(pending).rejects.toThrow(/abort/i);
+    expect(calls[0].path).toBe("/api/v1/sandbox/sb1/shell/stream");
+    expect(calls[0].signal?.aborted).toBe(true);
+  });
+
+  it("passes the signal for runCode", async () => {
+    const { client, calls } = hangingServer();
+    const controller = new AbortController();
+    const pending = client.sandbox.runCode("sb1", {
+      language: "python",
+      code: "import time; time.sleep(30)",
+      signal: controller.signal,
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    controller.abort();
+    await expect(pending).rejects.toThrow(/abort/i);
+    expect(calls[0].signal?.aborted).toBe(true);
   });
 });
 

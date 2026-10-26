@@ -1,4 +1,33 @@
 ---
+title: 2026-10-24 Version 2.7.0 - Agent provider gaps (get by id, binary files, cancel)
+---
+
+# Version 2.7.0 - Agent provider gaps (get by id, binary files, cancel)
+
+Date: 2026-10-24
+Author: AI Assistant
+AI Agent: Claude
+
+## What Changed
+- `client.sandbox.get(id)` now calls `GET /api/v1/sandbox/{id}` and throws a `SandockError` with
+  `code: "SANDBOX_NOT_FOUND"` when the sandbox doesn't exist. On servers without that route it
+  falls back to the old list-and-filter (current space), still throwing the coded error.
+- Added `client.sandbox.getById(id)` (returns `null` when not found), `SandockError`,
+  `isSandboxNotFoundError`, and `SANDBOX_NOT_FOUND`.
+- `client.fs.write` accepts `string | Uint8Array` (+ `{ executable }`); added `client.fs.readBytes`.
+  Bytes use the server's `encoding: "base64"` support when the client has confirmed it (the
+  get-by-id route answered); otherwise they go through a chunked `base64 -d` / `base64` shell
+  fallback. Base64 is never sent to a server that would store it as literal text.
+- `shell()` and `runCode()` accept `signal?: AbortSignal` on both the streaming and the buffered
+  path. Streaming calls now use the client's injectable `fetch`.
+
+## Breaking Changes
+- `sandbox.get(id)` throws `SandockError` (still an `Error`, message unchanged in the not-found case)
+  instead of a plain `Error`.
+
+---
+
+---
 title: 2026-09-01 Version 2.4.0 - Managed Volume Size Limits
 ---
 

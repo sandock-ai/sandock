@@ -144,6 +144,24 @@ await client.sandbox.stop('sdbXXX')
 // Returns: { success: true, code: 200, message: 'SUCCESS', data: { id: 'sdbXXX', stopped: true } }
 ```
 
+#### `client.sandbox.get(sandboxId)` / `client.sandbox.getById(sandboxId)`
+
+Get one sandbox. `get` throws a `SandockError` with `code === 'SANDBOX_NOT_FOUND'` when the sandbox doesn't exist (or isn't visible to your key); `getById` returns `null` instead. Auth and network failures are never reported as not-found.
+
+```typescript
+import { isSandboxNotFoundError } from 'sandock'
+
+const sb = await client.sandbox.getById('sdbXXX') // { id, status } | null
+
+try {
+  await client.sandbox.get('sdbXXX')
+} catch (err) {
+  if (isSandboxNotFoundError(err)) { /* gone */ } else throw err
+}
+```
+
+Uses `GET /api/v1/sandbox/{id}`; against servers that predate that route it falls back to listing the current space and filtering.
+
 #### `client.sandbox.delete(sandboxId)`
 
 Delete a sandbox and free resources.
@@ -219,6 +237,17 @@ await client.sandbox.shell('sdbXXX', { cmd: 'echo "start"; sleep 2; echo "done"'
 })
 ```
 
+**Cancelling** (`runCode` takes the same option):
+
+```typescript
+const controller = new AbortController()
+setTimeout(() => controller.abort(), 1000)
+await client.sandbox.shell('sdbXXX', { cmd: 'sleep 30; echo done', signal: controller.signal })
+// rejects with an AbortError; the server kills the command and everything it started
+```
+
+Older servers that predate cancellation stop sending output but leave the command running until its `timeoutMs`.
+
 ### Coding Agent Operations
 
 Run AI coding agents (e.g. Claude, Gemini) inside a sandbox. The request is proxied to the `sandagent-daemon` running at port 3080 inside the container, which orchestrates the agent loop and streams results back as NDJSON.
@@ -261,11 +290,24 @@ await client.coding.run('sdbXXX', { userInput: 'Fix the failing tests' }, {
 
 #### `client.fs.write(sandboxId, path, content, options?)`
 
-Write a file to the sandbox.
+Write a file to the sandbox. A string is written as UTF-8 text; a `Uint8Array` is written byte-for-byte.
 
 ```typescript
 await client.fs.write('sdbXXX', '/sandbox/app.js', 'console.log("hi")', { executable: false })
 // Returns: { success: true, code: 200, message: 'SUCCESS', data: true }
+
+await client.fs.write('sdbXXX', '/sandbox/logo.png', pngBytes) // Uint8Array
+```
+
+Bytes travel base64-encoded (`encoding: 'base64'`) once the client has confirmed the server supports it; on older servers they are written through `base64 -d` in the sandbox shell instead, so they are never stored as literal base64 text.
+
+#### `client.fs.readBytes(sandboxId, path)`
+
+Read a file's raw bytes.
+
+```typescript
+const { data } = await client.fs.readBytes('sdbXXX', '/sandbox/logo.png')
+// data.content is a Uint8Array
 ```
 
 #### `client.fs.read(sandboxId, path)`

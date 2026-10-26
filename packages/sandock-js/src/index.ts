@@ -39,6 +39,7 @@
 // Types
 export type {
   ExecutionResult,
+  FsWriteOptions,
   PreviewUrlOptions,
   PreviewUrlResult,
   RunCodeOptions,
@@ -55,7 +56,13 @@ export type {
   VolumeMountInput,
 } from "./client";
 // Main client export
-export { createSandockClient, DEFAULT_TIMEOUT_MS } from "./client";
+export {
+  createSandockClient,
+  DEFAULT_TIMEOUT_MS,
+  isSandboxNotFoundError,
+  SANDBOX_NOT_FOUND,
+  SandockError,
+} from "./client";
 // PTY types
 export type { PtyCreateOptions, PtyHandle } from "./pty";
 

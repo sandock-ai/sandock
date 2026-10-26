@@ -805,6 +805,8 @@ export interface components {
       /** @example src/index.js */
       path: string;
       content: string;
+      /** `base64` = content is base64-encoded bytes (servers that support it; default utf8) */
+      encoding?: "utf8" | "base64";
       executable?: boolean;
     };
     SandboxListResponse: {

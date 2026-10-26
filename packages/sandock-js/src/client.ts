@@ -4,6 +4,7 @@
  */
 
 import createClient from "openapi-fetch";
+import { base64ToBytes, bytesToBase64, shQuote } from "./base64";
 import { createPtyClient, type PtyCreateOptions, type PtyHandle } from "./pty";
 import type { components, paths } from "./schema";
 
@@ -12,6 +13,33 @@ type OpenAPIClient = ReturnType<typeof createClient<paths>>;
 
 /** Default timeout in milliseconds (30 seconds) */
 export const DEFAULT_TIMEOUT_MS = 30 * 1000;
+
+/** `SandockError.code` when a sandbox doesn't exist (or isn't visible to this API key). */
+export const SANDBOX_NOT_FOUND = "SANDBOX_NOT_FOUND";
+
+/**
+ * Error thrown by the high-level API when the server answers with an error. `code` is a stable,
+ * machine-readable reason (`SANDBOX_NOT_FOUND`, or `HTTP_<status>` when the server gave none) so
+ * callers can tell "this sandbox is gone" apart from auth or network failures (network failures
+ * and aborts surface as the runtime's own fetch errors, not as `SandockError`).
+ */
+export class SandockError extends Error {
+  readonly code: string;
+  readonly status?: number;
+  readonly body?: unknown;
+
+  constructor(message: string, options: { code: string; status?: number; body?: unknown }) {
+    super(message);
+    this.name = "SandockError";
+    this.code = options.code;
+    this.status = options.status;
+    this.body = options.body;
+  }
+}
+
+/** True when `error` means the sandbox doesn't exist (or isn't visible to this API key). */
+export const isSandboxNotFoundError = (error: unknown): boolean =>
+  error instanceof SandockError && error.code === SANDBOX_NOT_FOUND;
 
 export interface SandockClientOptions {
   /**
@@ -95,6 +123,11 @@ export interface RunCodeOptions {
   code: string;
   /** Timeout in milliseconds (default: 30000ms = 30s) */
   timeoutMs?: number;
+  /**
+   * Cancel the run. The request is aborted (the returned promise rejects with the fetch
+   * `AbortError`); servers that support it then kill the process in the sandbox.
+   */
+  signal?: AbortSignal;
 }
 
 export interface ShellOptions {
@@ -106,6 +139,16 @@ export interface ShellOptions {
   workdir?: string;
   /** Environment variables */
   env?: Record<string, string>;
+  /**
+   * Cancel the command. The request is aborted (the returned promise rejects with the fetch
+   * `AbortError`); servers that support it then kill the command's process tree in the sandbox.
+   */
+  signal?: AbortSignal;
+}
+
+export interface FsWriteOptions {
+  /** Mark the file executable (chmod 755) */
+  executable?: boolean;
 }
 
 export interface PreviewUrlOptions {
@@ -258,8 +301,14 @@ export interface SandockClient extends OpenAPIClient {
     start(sandboxId: string): Promise<{ success: true; data: { id: string; started: boolean } }>;
     /** Stop a sandbox */
     stop(sandboxId: string): Promise<{ success: true; data: { id: string; stopped: boolean } }>;
-    /** Get sandbox info */
-    get(sandboxId: string): Promise<{ success: true; data: { id: string; status: string } }>;
+    /**
+     * Get a sandbox by id. Throws `SandockError` with `code === "SANDBOX_NOT_FOUND"` when it
+     * doesn't exist (see `isSandboxNotFoundError`). Uses `GET /api/v1/sandbox/{id}`, falling back to
+     * list-and-filter (current space only) on servers that predate that route.
+     */
+    get(sandboxId: string): Promise<{ success: true; data: SandboxItem }>;
+    /** Like `get`, but resolves `null` instead of throwing when the sandbox doesn't exist. */
+    getById(sandboxId: string): Promise<SandboxItem | null>;
     /** Delete a sandbox */
     delete(sandboxId: string): Promise<{ success: true; data: { id: string; deleted: boolean } }>;
     /**
@@ -318,17 +367,27 @@ export interface SandockClient extends OpenAPIClient {
   };
   /** File system operations */
   fs: {
-    /** Write file to sandbox */
+    /**
+     * Write a file. A string is written as UTF-8 text; a `Uint8Array` is written byte-for-byte.
+     * Bytes go over the wire base64-encoded when the server supports it, otherwise through a
+     * `base64 -d` shell fallback — never as base64 text to a server that would store it literally.
+     */
     write(
       sandboxId: string,
       path: string,
-      content: string,
+      content: string | Uint8Array,
+      options?: FsWriteOptions,
     ): Promise<{ success: true; data: boolean }>;
-    /** Read file from sandbox */
+    /** Read a file as UTF-8 text */
     read(
       sandboxId: string,
       path: string,
     ): Promise<{ success: true; data: { path: string; content: string } }>;
+    /** Read a file's raw bytes (binary-safe; shell fallback on servers without base64 support) */
+    readBytes(
+      sandboxId: string,
+      path: string,
+    ): Promise<{ success: true; data: { path: string; content: Uint8Array } }>;
     /** List files in sandbox directory */
     list(
       sandboxId: string,
@@ -434,6 +493,123 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
     fetch: customFetch,
   });
 
+  const url = (path: string) => `${baseUrl}${path}`;
+  const sandboxPath = (sandboxId: string, suffix = "") =>
+    `/api/v1/sandbox/${encodeURIComponent(sandboxId)}${suffix}`;
+
+  /** JSON request via the injectable fetch; never throws on HTTP errors (callers decide). */
+  async function requestJson(
+    method: string,
+    path: string,
+    init: { body?: unknown; signal?: AbortSignal } = {},
+  ): Promise<{ status: number; ok: boolean; body: any }> {
+    const response = await requestFetch(url(path), {
+      method,
+      headers: {
+        ...(init.body !== undefined && { "Content-Type": "application/json" }),
+        ...headers,
+      },
+      body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+      signal: init.signal,
+    });
+    const text = await response.text();
+    let body: any = text;
+    try {
+      body = text ? JSON.parse(text) : undefined;
+    } catch {
+      // non-JSON body (proxy error page etc.) — keep the text
+    }
+    return { status: response.status, ok: response.ok, body };
+  }
+
+  const isNotFoundBody = (r: { status: number; body: any }) =>
+    r.status === 404 && r.body?.data?.code === SANDBOX_NOT_FOUND;
+  /** The route doesn't exist on this (older) server. */
+  const isRouteMissing = (r: { status: number; body: any }) =>
+    (r.status === 404 || r.status === 405 || r.status === 501) && !isNotFoundBody(r);
+
+  const httpError = (what: string, r: { status: number; body: any }) =>
+    new SandockError(`${what}: ${typeof r.body === "string" ? r.body : JSON.stringify(r.body)}`, {
+      code: isNotFoundBody(r) ? SANDBOX_NOT_FOUND : `HTTP_${r.status}`,
+      status: r.status,
+      body: r.body,
+    });
+
+  const notFoundError = (sandboxId: string, status?: number, body?: unknown) =>
+    new SandockError(`Sandbox not found: ${sandboxId}`, { code: SANDBOX_NOT_FOUND, status, body });
+
+  /**
+   * Whether the server understands `encoding: "base64"` on fs read/write. Learned once per client:
+   * servers that serve `GET /api/v1/sandbox/{id}` shipped together with base64 fs support, and an
+   * older server would silently store base64 text verbatim, so writes only send base64 once this
+   * is confirmed. Reads are self-describing (the response echoes `encoding`).
+   */
+  let binaryFsSupported: boolean | undefined;
+
+  /** `GET /api/v1/sandbox/{id}`; `null` = the server predates the route. */
+  async function getViaRoute(sandboxId: string): Promise<SandboxItem | "not-found" | null> {
+    const r = await requestJson("GET", sandboxPath(sandboxId));
+    if (r.ok && r.body?.data?.id) {
+      binaryFsSupported = true;
+      return r.body.data as SandboxItem;
+    }
+    if (isNotFoundBody(r)) {
+      binaryFsSupported = true;
+      return "not-found";
+    }
+    if (isRouteMissing(r)) {
+      binaryFsSupported = false;
+      return null;
+    }
+    throw httpError("Failed to get sandbox", r);
+  }
+
+  async function supportsBinaryFs(sandboxId: string): Promise<boolean> {
+    if (binaryFsSupported === undefined) await getViaRoute(sandboxId);
+    return binaryFsSupported === true;
+  }
+
+  /** Base64 chunk per fallback shell call; a multiple of 4 that fits a single exec argument. */
+  const FALLBACK_CHUNK = 48 * 1024;
+
+  /** Write bytes through `base64 -d` in the sandbox shell (servers without base64 fs support). */
+  async function writeBytesViaShell(
+    sandboxId: string,
+    path: string,
+    bytes: Uint8Array,
+    executable?: boolean,
+  ) {
+    const b64 = bytesToBase64(bytes);
+    const q = shQuote(path);
+    const run = async (cmd: string) => {
+      const result = await sandbox.shell(sandboxId, { cmd, timeoutMs: 60_000 });
+      if (result.data.exitCode !== 0) {
+        throw new SandockError(`Failed to write file ${path}: ${result.data.stderr}`, {
+          code: "FS_WRITE_FAILED",
+        });
+      }
+    };
+    await run(`mkdir -p "$(dirname ${q})" && : > ${q}`);
+    for (let offset = 0; offset < b64.length; offset += FALLBACK_CHUNK) {
+      const chunk = b64.slice(offset, offset + FALLBACK_CHUNK);
+      await run(`printf '%s' '${chunk}' | base64 -d >> ${q}`);
+    }
+    if (executable) await run(`chmod 755 ${q}`);
+  }
+
+  async function readBytesViaShell(sandboxId: string, path: string): Promise<Uint8Array> {
+    const result = await sandbox.shell(sandboxId, {
+      cmd: `base64 ${shQuote(path)}`,
+      timeoutMs: 60_000,
+    });
+    if (result.data.exitCode !== 0) {
+      throw new SandockError(`Failed to read file ${path}: ${result.data.stderr}`, {
+        code: "FS_READ_FAILED",
+      });
+    }
+    return base64ToBytes(result.data.stdout);
+  }
+
   // Build high-level API
   const sandbox = {
     async list(listOptions?: SandboxListOptions) {
@@ -507,21 +683,27 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
     },
 
     async get(sandboxId: string) {
-      const { data, error } = await rawClient.GET("/api/v1/sandbox");
+      const viaRoute = await getViaRoute(sandboxId);
+      if (viaRoute === "not-found") throw notFoundError(sandboxId, 404);
+      if (viaRoute) return { success: true as const, data: viaRoute };
 
-      if (error) {
-        throw new Error(`Failed to list sandboxes: ${JSON.stringify(error)}`);
-      }
-
-      const sandbox = (data.data.items as Array<{ id: string; status: string }>).find(
+      // Older server without `GET /sandbox/{id}`: list (current space) and filter.
+      const r = await requestJson("GET", "/api/v1/sandbox");
+      if (!r.ok) throw httpError("Failed to list sandboxes", r);
+      const found = (r.body?.data?.items as SandboxItem[] | undefined)?.find(
         (s) => s.id === sandboxId,
       );
+      if (!found) throw notFoundError(sandboxId);
+      return { success: true as const, data: found };
+    },
 
-      if (!sandbox) {
-        throw new Error(`Sandbox not found: ${sandboxId}`);
+    async getById(sandboxId: string) {
+      try {
+        return (await sandbox.get(sandboxId)).data;
+      } catch (error) {
+        if (isSandboxNotFoundError(error)) return null;
+        throw error;
       }
-
-      return { success: true as const, data: sandbox };
     },
 
     async delete(sandboxId: string) {
@@ -545,7 +727,7 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
 
       // If callbacks provided, use SSE streaming endpoint
       if (callbacks) {
-        const response = await fetch(`${baseUrl}/api/v1/sandbox/${sandboxId}/code/stream`, {
+        const response = await requestFetch(`${baseUrl}/api/v1/sandbox/${sandboxId}/code/stream`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -556,6 +738,7 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
             code: runOptions.code,
             timeoutMs,
           }),
+          signal: runOptions.signal,
         });
 
         if (!response.ok) {
@@ -574,6 +757,7 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
           code: runOptions.code,
           timeoutMs,
         },
+        signal: runOptions.signal,
       });
 
       if (error) {
@@ -592,7 +776,7 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
 
       // If callbacks provided, use SSE streaming endpoint
       if (callbacks) {
-        const response = await fetch(`${baseUrl}/api/v1/sandbox/${sandboxId}/shell/stream`, {
+        const response = await requestFetch(`${baseUrl}/api/v1/sandbox/${sandboxId}/shell/stream`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -604,6 +788,7 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
             ...(shellOptions.workdir && { workdir: shellOptions.workdir }),
             ...(shellOptions.env && { env: shellOptions.env }),
           }),
+          signal: shellOptions.signal,
         });
 
         if (!response.ok) {
@@ -623,6 +808,7 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
           ...(shellOptions.workdir && { workdir: shellOptions.workdir }),
           ...(shellOptions.env && { env: shellOptions.env }),
         },
+        signal: shellOptions.signal,
       });
 
       if (error) {
@@ -732,17 +918,37 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
   };
 
   const fs = {
-    async write(sandboxId: string, path: string, content: string) {
-      const { data, error } = await rawClient.POST("/api/v1/sandbox/{id}/fs/write", {
-        params: { path: { id: sandboxId } },
-        body: { path, content },
-      });
+    async write(
+      sandboxId: string,
+      path: string,
+      content: string | Uint8Array,
+      options: FsWriteOptions = {},
+    ) {
+      const executable = options.executable ? { executable: true } : {};
+      if (typeof content === "string") {
+        // Text: the request is byte-identical to what every server version has always accepted.
+        const { data, error } = await rawClient.POST("/api/v1/sandbox/{id}/fs/write", {
+          params: { path: { id: sandboxId } },
+          body: { path, content, ...executable },
+        });
 
-      if (error) {
-        throw new Error(`Failed to write file: ${JSON.stringify(error)}`);
+        if (error) {
+          throw new Error(`Failed to write file: ${JSON.stringify(error)}`);
+        }
+
+        return { success: true as const, data: data.data };
       }
 
-      return { success: true as const, data: data.data };
+      if (await supportsBinaryFs(sandboxId)) {
+        const r = await requestJson("POST", sandboxPath(sandboxId, "/fs/write"), {
+          body: { path, content: bytesToBase64(content), encoding: "base64", ...executable },
+        });
+        if (!r.ok) throw httpError("Failed to write file", r);
+        return { success: true as const, data: r.body?.data as boolean };
+      }
+
+      await writeBytesViaShell(sandboxId, path, content, options.executable);
+      return { success: true as const, data: true };
     },
 
     async read(sandboxId: string, filePath: string) {
@@ -758,6 +964,27 @@ export function createSandockClient(options: SandockClientOptions = {}): Sandock
       }
 
       return { success: true as const, data: data.data };
+    },
+
+    async readBytes(sandboxId: string, filePath: string) {
+      if (binaryFsSupported !== false) {
+        const query = new URLSearchParams({ path: filePath, encoding: "base64" });
+        const r = await requestJson("GET", sandboxPath(sandboxId, `/fs/read?${query}`));
+        if (!r.ok) throw httpError("Failed to read file", r);
+        if (r.body?.data?.encoding === "base64") {
+          binaryFsSupported = true;
+          return {
+            success: true as const,
+            data: { path: filePath, content: base64ToBytes(r.body.data.content as string) },
+          };
+        }
+        // No `encoding` echoed: an older server returned (lossy) UTF-8 text. Don't trust it.
+        binaryFsSupported = false;
+      }
+      return {
+        success: true as const,
+        data: { path: filePath, content: await readBytesViaShell(sandboxId, filePath) },
+      };
     },
 
     async list(sandboxId: string, dirPath: string) {
